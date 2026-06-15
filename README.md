@@ -4,12 +4,36 @@ Plataforma para configurar packs de eventos (bodas, banquetes): el cliente final
 una **experiencia** (fotomatón, espejo mágico, photocall, cabina 360…) y sus
 **complementos**, con cálculo de precio en vivo y comprobación de disponibilidad por
 fecha. Incluye un panel de administración para gestionar catálogo, disponibilidad,
-precios y reservas.
+precios, reservas, clientes y usuarios.
 
-> **Fase 1 (esta entrega):** configurador completo + disponibilidad con turnos + motor de
-> precios (temporada, packs, zonas) + panel Filament + reserva como *lead* por email.
+- **Repositorio:** https://github.com/Rivadesa/troula
+- **Producción:** https://troula.xeitoso.com (panel en `/admin`) — alojado en **SiteGround**.
+
+> **Fase 1 (entregada y en producción):** configurador completo + disponibilidad con turnos +
+> motor de precios (temporada, packs, zonas) + panel Filament + reserva como *lead* por email.
 > Todo el dinero se calcula y se muestra, pero **no se cobra online**. La tabla `pagos` y
 > la máquina de estados quedan creadas pero inertes (ver [Fase 2](#fase-2-puntos-de-extensión)).
+
+---
+
+## Funcionalidades
+
+**Frontend (configurador por pasos, `/`)**
+- Wizard de 5 pasos: experiencia → complementos/pack → datos del evento → datos personales → resumen.
+- Selección de experiencia en **lista vertical** con imagen completa; packs y complementos en tarjetas por categoría.
+- **Precio en vivo** en el carrito lateral (mismo motor que el backend).
+- **Datepicker** que respeta la disponibilidad (turnos mañana/tarde) y cálculo de porte/montaje por concello.
+- **Consentimiento LOPD obligatorio**: los datos del cliente solo se guardan tras aceptar la política.
+- Al confirmar: crea la reserva en estado `solicitada` y avisa al administrador por email.
+
+**Panel de administración (Filament, `/admin`)**
+- **Catálogo:** experiencias (con gestor N:N de complementos), categorías, complementos, packs. Todo con imagen.
+- **Configuración:** temporadas, zonas de porte, concellos, **datos de la empresa** (nombre, logo, contacto, redes…).
+- **Reservas:** listado filtrable, ficha de detalle (desglose, complementos, pagos), cambio de estado y **calendario mensual**.
+- **Clientes:** registro con su consentimiento LOPD y reservas asociadas.
+- **Usuarios y roles:** administradores (acceso total) y empleados (solo reservas + calendario, en lectura).
+- **Perfil:** cada usuario cambia su nombre, email y **contraseña**.
+- Dashboard con widgets de próximas reservas y resumen.
 
 ---
 
@@ -47,7 +71,9 @@ precios y reservas.
 - **Packs:** `packs` (precio cerrado) + pivote `pack_complemento`.
 - **Precios por temporada:** `temporadas` (rangos que se repiten cada año, ajuste % o fijo).
 - **Porte/montaje:** `zonas_porte` + `concello_zona`.
-- **Reservas:** `reservas` (importes **congelados**), `reserva_complemento` (precio congelado), `pagos`.
+- **Reservas:** `reservas` (importes **congelados**, FK a `cliente`), `reserva_complemento` (precio congelado), `pagos`.
+- **Clientes:** `clientes` (nombre, email, teléfono, `acepto_lopd`, `consentimiento_en`).
+- **Usuarios y empresa:** `users.rol` (`admin`/`empleado`, ver `App\Enums\Rol`), `configuracion` (fila única con los datos de la empresa).
 
 ### Lógica de negocio (`app/Services`)
 
@@ -80,10 +106,19 @@ php artisan serve
 
 - **Configurador (frontend):** http://localhost:8000/
 - **Panel de administración:** http://localhost:8000/admin
-  - Usuario: `admin@troula.test` · Contraseña: `password` (creado por el seeder; **cámbialos en producción**).
+
+Usuarios de demo creados por el seeder (**cámbialos en producción**):
+
+| Rol | Email | Contraseña |
+|-----|-------|------------|
+| Administrador | `admin@troula.test` | `password` |
+| Empleado | `empleado@troula.test` | `password` |
 
 > El `.env` del repo ya viene con `DB_CONNECTION=sqlite` para arrancar sin MySQL.
 > El fichero `database/database.sqlite` se crea solo en la instalación.
+>
+> En **Windows con Herd**, arranca con `php artisan serve --no-reload` (sin el flag el
+> recargador rompe el enlace del puerto). También funciona sirviéndolo con Herd (`herd link`).
 
 ### Tests
 
@@ -178,6 +213,70 @@ MAIL_ADMIN_ADDRESS="info@tu-dominio.com"
 
 No se manipula OPcache en runtime, así que `opcache.restrict_api` puede quedar activo sin
 problema. Tras un despliegue, si el panel lo permite, reinicia PHP para refrescar OPcache.
+
+---
+
+## Despliegue actual (SiteGround, vía SSH + Git)
+
+La instancia de producción está en **SiteGround**, servida desde el subdominio
+`troula.xeitoso.com`. El código se clona en una carpeta **fuera** de la raíz web y
+`public_html` apunta al `public/` de Laravel con un enlace simbólico:
+
+```
+~/www/troula.xeitoso.com/
+├── app/                     ← repositorio clonado (Laravel)
+└── public_html → app/public   (enlace simbólico = raíz web)
+```
+
+Primer despliegue (resumen):
+
+```bash
+cd ~/www/troula.xeitoso.com
+git clone https://github.com/Rivadesa/troula.git app
+cd app
+composer install --no-dev --optimize-autoloader
+cp .env.example .env            # editar APP_URL, BD, mail…
+php artisan key:generate
+php artisan migrate --force --seed
+php artisan storage:link
+php artisan optimize && php artisan filament:optimize
+cd .. && rm -rf public_html && ln -s app/public public_html
+```
+
+> **Nota:** la instancia actual usa **SQLite** (rápido, sin crear BD). Para pasar a MySQL:
+> crea la BD en Site Tools, ajusta `DB_*` en `.env` y `php artisan migrate --force`.
+
+### Actualizar producción
+
+Con el código ya desplegado, cada actualización es un único comando dentro de la app:
+
+```bash
+cd ~/www/troula.xeitoso.com/app && bash deploy.sh
+```
+
+`deploy.sh` (incluido en el repo) hace `git pull` + `composer install` + `migrate` + recacheo.
+
+> Los datos de conexión SSH del servidor (host, usuario, puerto y rutas) están en
+> **`NOTAS-SERVIDOR.md`**, un fichero local **no versionado** (fuera del repo público).
+
+### Cola, cron y correo (estado actual)
+
+- **Cola:** driver `database`, pero la instancia usa `QUEUE_CONNECTION=sync` (el email se
+  envía en el mismo request, sin cron). Para encolar: `QUEUE_CONNECTION=database` + cron
+  cada minuto `* * * * * cd /ruta/app && php artisan schedule:run >> /dev/null 2>&1`.
+- **Correo:** en `log` (los avisos se escriben en `storage/logs/laravel.log`). Para enviar
+  de verdad, configura el SMTP de SiteGround en `.env` (`MAIL_*`).
+
+---
+
+## Cómo retomar el proyecto
+
+1. **Clona:** `git clone https://github.com/Rivadesa/troula.git`
+2. **Local:** sigue [Puesta en marcha en local](#puesta-en-marcha-en-local) (`composer install`,
+   `migrate --seed`, `php artisan serve --no-reload`).
+3. **Estado, decisiones y tareas pendientes:** ver [`docs/ESTADO.md`](docs/ESTADO.md).
+4. **Ciclo de cambios:** editar → `./vendor/bin/pest` (todo en verde) → `git push` → en el
+   servidor `bash deploy.sh`.
 
 ---
 
