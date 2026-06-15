@@ -1,9 +1,20 @@
+@php
+    use Illuminate\Support\Facades\Storage;
+    $empresa = \App\Models\Configuracion::actual();
+    $logo = $empresa->logo ? Storage::url($empresa->logo) : null;
+    $redes = array_filter([
+        'Instagram' => $empresa->instagram,
+        'Facebook' => $empresa->facebook,
+        'TikTok' => $empresa->tiktok,
+        'YouTube' => $empresa->youtube,
+    ]);
+@endphp
 <!DOCTYPE html>
 <html lang="es" class="scroll-smooth">
 <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ $title ?? config('app.name') }}</title>
+    <title>{{ $title ?? $empresa->nombre }}</title>
 
     {{-- DECISIÓN: Tailwind y flatpickr vía CDN para que el configurador sea autónomo y
          desplegable en Dinahosting sin paso de build (npm). Livewire ya incluye Alpine. --}}
@@ -43,10 +54,16 @@
     <header class="border-b border-marca-100 bg-white/70 backdrop-blur">
         <div class="mx-auto flex max-w-6xl items-center justify-between px-4 py-4">
             <a href="/" class="flex items-center gap-2 text-xl font-bold text-marca-700">
-                <span class="grid h-9 w-9 place-items-center rounded-xl bg-marca-600 text-white">T</span>
-                Troula Eventos
+                @if ($logo)
+                    <img src="{{ $logo }}" alt="{{ $empresa->nombre }}" class="h-10 w-auto">
+                @else
+                    <span class="grid h-9 w-9 place-items-center rounded-xl bg-marca-600 text-white">{{ \Illuminate\Support\Str::substr($empresa->nombre, 0, 1) }}</span>
+                    {{ $empresa->nombre }}
+                @endif
             </a>
-            <span class="hidden text-sm text-gray-500 sm:block">Fotomatones y experiencias para tu evento</span>
+            @if ($empresa->eslogan)
+                <span class="hidden text-sm text-gray-500 sm:block">{{ $empresa->eslogan }}</span>
+            @endif
         </div>
     </header>
 
@@ -54,8 +71,24 @@
         {{ $slot }}
     </main>
 
-    <footer class="mt-12 border-t border-gray-100 py-6 text-center text-sm text-gray-400">
-        © {{ date('Y') }} Troula Eventos · A Coruña
+    <footer class="mt-12 border-t border-gray-100 py-8 text-center text-sm text-gray-500">
+        <p class="font-semibold text-gray-700">{{ $empresa->nombre }}</p>
+        <p class="mt-1">
+            @if ($empresa->telefono)<span>{{ $empresa->telefono }}</span>@endif
+            @if ($empresa->telefono && $empresa->email) · @endif
+            @if ($empresa->email)<a href="mailto:{{ $empresa->email }}" class="hover:text-marca-700">{{ $empresa->email }}</a>@endif
+        </p>
+        @if ($empresa->direccion || $empresa->ciudad)
+            <p class="mt-1 text-gray-400">{{ collect([$empresa->direccion, $empresa->codigo_postal, $empresa->ciudad])->filter()->join(' · ') }}</p>
+        @endif
+        @if (count($redes))
+            <p class="mt-3 flex flex-wrap items-center justify-center gap-3">
+                @foreach ($redes as $nombre => $url)
+                    <a href="{{ $url }}" target="_blank" rel="noopener" class="font-medium text-marca-600 hover:text-marca-700">{{ $nombre }}</a>
+                @endforeach
+            </p>
+        @endif
+        <p class="mt-4 text-xs text-gray-400">© {{ date('Y') }} {{ $empresa->nombre }}@if ($empresa->ciudad) · {{ $empresa->ciudad }}@endif</p>
     </footer>
 
     @livewireScripts

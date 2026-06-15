@@ -44,6 +44,10 @@ it('carga la edición de una experiencia (formulario + gestor de complementos)',
     $this->get("/admin/experiencias/{$experiencia->id}/edit")->assertOk();
 });
 
+it('carga la página de configuración de empresa', function () {
+    $this->get('/admin/configuracion-empresa')->assertOk();
+});
+
 it('carga la edición de un pack y de una zona de porte', function () {
     $pack = Pack::firstOrFail();
     $zona = ZonaPorte::firstOrFail();

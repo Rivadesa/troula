@@ -2,6 +2,7 @@
 
 namespace App\Providers\Filament;
 
+use App\Models\Configuracion;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
@@ -16,6 +17,7 @@ use Illuminate\Cookie\Middleware\EncryptCookies;
 use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
+use Illuminate\Support\Facades\Storage;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
 
 class AdminPanelProvider extends PanelProvider
@@ -27,8 +29,16 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            // Marca tomada de la configuración de empresa (con respaldo si la tabla aún no existe).
+            ->brandName(rescue(fn (): string => Configuracion::actual()->nombre, 'Troula Eventos', report: false))
+            ->brandLogo(rescue(function (): ?string {
+                $empresa = Configuracion::actual();
+
+                return $empresa->logo ? Storage::url($empresa->logo) : null;
+            }, null, report: false))
+            ->brandLogoHeight('2rem')
             ->colors([
-                'primary' => Color::Amber,
+                'primary' => Color::Teal,
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\\Filament\\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\\Filament\\Pages')
