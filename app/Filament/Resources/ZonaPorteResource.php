@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\SoloAdministradores;
 use App\Filament\Resources\ZonaPorteResource\Pages;
 use App\Filament\Resources\ZonaPorteResource\RelationManagers\ConcellosRelationManager;
 use App\Models\ZonaPorte;
@@ -13,6 +14,8 @@ use Filament\Tables\Table;
 
 class ZonaPorteResource extends Resource
 {
+    use SoloAdministradores;
+
     protected static ?string $model = ZonaPorte::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-truck';

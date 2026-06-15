@@ -29,6 +29,7 @@ class AdminPanelProvider extends PanelProvider
             ->id('admin')
             ->path('admin')
             ->login()
+            ->profile() // página de perfil: cada usuario cambia su nombre, email y contraseña.
             // Marca tomada de la configuración de empresa (con respaldo si la tabla aún no existe).
             ->brandName(rescue(fn (): string => Configuracion::actual()->nombre, 'Troula Eventos', report: false))
             ->brandLogo(rescue(function (): ?string {

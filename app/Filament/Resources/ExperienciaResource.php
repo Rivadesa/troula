@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\SoloAdministradores;
 use App\Filament\Resources\ExperienciaResource\Pages;
 use App\Filament\Resources\ExperienciaResource\RelationManagers\ComplementosRelationManager;
 use App\Models\Experiencia;
@@ -15,6 +16,8 @@ use Illuminate\Support\Str;
 
 class ExperienciaResource extends Resource
 {
+    use SoloAdministradores;
+
     protected static ?string $model = Experiencia::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-camera';

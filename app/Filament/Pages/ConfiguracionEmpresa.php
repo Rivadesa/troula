@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Filament\Concerns\SoloAdministradores;
 use App\Models\Configuracion;
 use Filament\Actions\Action;
 use Filament\Forms;
@@ -17,6 +18,7 @@ use Filament\Pages\Page;
 class ConfiguracionEmpresa extends Page implements HasForms
 {
     use InteractsWithForms;
+    use SoloAdministradores;
 
     protected static ?string $navigationIcon = 'heroicon-o-building-storefront';
 
@@ -60,6 +62,12 @@ class ConfiguracionEmpresa extends Page implements HasForms
                         Forms\Components\TextInput::make('telefono')->label('Teléfono')->tel()->maxLength(255),
                         Forms\Components\TextInput::make('whatsapp')->label('WhatsApp')->tel()->maxLength(255),
                         Forms\Components\TextInput::make('web')->label('Sitio web')->url()->prefix('https://')->maxLength(255),
+                        Forms\Components\TextInput::make('politica_privacidad_url')
+                            ->label('URL política de privacidad')
+                            ->url()
+                            ->maxLength(255)
+                            ->helperText('Se enlaza en el checkbox de LOPD del configurador.')
+                            ->columnSpanFull(),
                     ])->columns(2),
 
                 Forms\Components\Section::make('Dirección y datos fiscales')

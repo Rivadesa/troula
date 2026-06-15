@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\SoloAdministradores;
 use App\Filament\Resources\ComplementoResource\Pages;
 use App\Models\Complemento;
 use Filament\Forms;
@@ -14,6 +15,8 @@ use Illuminate\Support\Str;
 
 class ComplementoResource extends Resource
 {
+    use SoloAdministradores;
+
     protected static ?string $model = Complemento::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-puzzle-piece';

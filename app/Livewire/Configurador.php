@@ -58,6 +58,8 @@ class Configurador extends Component
 
     public ?string $observaciones = null;
 
+    public bool $aceptoLopd = false;
+
     // Estado final tras enviar.
     public ?string $referencia = null;
 
@@ -291,6 +293,7 @@ class Configurador extends Component
                 'cliente_telefono' => $this->clienteTelefono,
                 'lugar_evento' => $this->lugarEvento,
                 'observaciones' => $this->observaciones,
+                'acepto_lopd' => $this->aceptoLopd,
             ]);
         } catch (ExperienciaNoDisponibleException $e) {
             throw ValidationException::withMessages([
@@ -364,7 +367,10 @@ class Configurador extends Component
                 'clienteNombre' => 'required|string|max:255',
                 'clienteEmail' => 'required|email|max:255',
                 'clienteTelefono' => 'required|string|max:255',
-            ], [], [
+                'aceptoLopd' => 'accepted',
+            ], [
+                'aceptoLopd.accepted' => 'Debes aceptar la política de privacidad para continuar.',
+            ], [
                 'clienteNombre' => 'nombre',
                 'clienteEmail' => 'email',
                 'clienteTelefono' => 'teléfono',

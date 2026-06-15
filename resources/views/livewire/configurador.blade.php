@@ -1,6 +1,7 @@
 @php
     use App\Enums\Turno;
     use Illuminate\Support\Facades\Storage;
+    $empresa = \App\Models\Configuracion::actual();
     $eur = fn ($n) => number_format((float) $n, 2, ',', '.') . ' €';
     $img = fn ($m) => $m && $m->imagen ? Storage::url($m->imagen) : null;
     $pasos = [1 => 'Tu experiencia', 2 => 'Complementos', 3 => 'Datos del evento', 4 => 'Tus datos', 5 => 'Tu reserva'];
@@ -306,6 +307,23 @@
                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Teléfono</label>
                             <input type="tel" wire:model="clienteTelefono" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:border-marca-500 focus:ring-marca-500">
                             @error('clienteTelefono') <p class="mt-1 text-sm text-acento-600">{{ $message }}</p> @enderror
+                        </div>
+
+                        {{-- Consentimiento LOPD (obligatorio para conservar los datos del cliente) --}}
+                        <div class="rounded-xl bg-marca-50/60 p-4">
+                            <label class="flex items-start gap-3">
+                                <input type="checkbox" wire:model.live="aceptoLopd" class="mt-0.5 h-5 w-5 rounded border-gray-300 text-marca-600 focus:ring-marca-500">
+                                <span class="text-sm text-gray-600">
+                                    He leído y acepto la
+                                    @if ($empresa->politica_privacidad_url)
+                                        <a href="{{ $empresa->politica_privacidad_url }}" target="_blank" rel="noopener" class="font-medium text-marca-700 underline">política de privacidad</a>
+                                    @else
+                                        <span class="font-medium text-marca-700">política de privacidad</span>
+                                    @endif
+                                    y el tratamiento de mis datos para gestionar la reserva (LOPD/RGPD).
+                                </span>
+                            </label>
+                            @error('aceptoLopd') <p class="mt-1 text-sm text-acento-600">{{ $message }}</p> @enderror
                         </div>
                     </div>
                 @endif

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\SoloAdministradores;
 use App\Filament\Resources\ConcelloZonaResource\Pages;
 use App\Models\ConcelloZona;
 use Filament\Forms;
@@ -12,6 +13,8 @@ use Filament\Tables\Table;
 
 class ConcelloZonaResource extends Resource
 {
+    use SoloAdministradores;
+
     protected static ?string $model = ConcelloZona::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-map-pin';

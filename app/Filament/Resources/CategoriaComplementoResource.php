@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\SoloAdministradores;
 use App\Filament\Resources\CategoriaComplementoResource\Pages;
 use App\Models\CategoriaComplemento;
 use Filament\Forms;
@@ -14,6 +15,8 @@ use Illuminate\Support\Str;
 
 class CategoriaComplementoResource extends Resource
 {
+    use SoloAdministradores;
+
     protected static ?string $model = CategoriaComplemento::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-rectangle-stack';

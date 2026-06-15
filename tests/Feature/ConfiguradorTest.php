@@ -2,6 +2,7 @@
 
 use App\Livewire\Configurador;
 use App\Mail\NuevaReservaMail;
+use App\Models\Cliente;
 use App\Models\Experiencia;
 use App\Models\Reserva;
 use Illuminate\Support\Facades\Mail;
@@ -57,6 +58,7 @@ it('completa el wizard y crea una reserva solicitada enviando el aviso al admini
         ->set('clienteNombre', 'Cliente de Prueba')
         ->set('clienteEmail', 'prueba@example.com')
         ->set('clienteTelefono', '600000000')
+        ->set('aceptoLopd', true)
         ->call('siguiente')                       // paso 4 -> 5
         ->assertSet('paso', 5)
         ->call('enviar')
@@ -68,7 +70,31 @@ it('completa el wizard y crea una reserva solicitada enviando el aviso al admini
         ->and($reserva->estado->value)->toBe('solicitada')
         ->and((float) $reserva->total)->toBeGreaterThan(0);
 
+    // El cliente queda registrado con su consentimiento LOPD.
+    $cliente = Cliente::where('email', 'prueba@example.com')->first();
+    expect($cliente)->not->toBeNull()
+        ->and($cliente->acepto_lopd)->toBeTrue()
+        ->and($reserva->cliente_id)->toBe($cliente->id);
+
     Mail::assertQueued(NuevaReservaMail::class, fn (NuevaReservaMail $mail) => $mail->reserva->is($reserva));
+});
+
+it('exige aceptar la política de privacidad (LOPD) para enviar', function () {
+    $fotomaton = Experiencia::where('slug', 'fotomaton-clasico')->firstOrFail();
+
+    Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $fotomaton->id)
+        ->call('siguiente')
+        ->call('siguiente')
+        ->set('fecha', '2027-05-01')
+        ->set('concello', 'A Coruña')
+        ->call('siguiente')   // paso 3 -> 4
+        ->set('clienteNombre', 'Cliente')
+        ->set('clienteEmail', 'cliente@example.com')
+        ->set('clienteTelefono', '600000000')
+        ->call('siguiente')   // intenta avanzar sin aceptar la LOPD
+        ->assertHasErrors(['aceptoLopd'])
+        ->assertSet('paso', 4);
 });
 
 it('no deja avanzar el paso del evento sin fecha ni concello', function () {

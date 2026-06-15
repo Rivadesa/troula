@@ -3,6 +3,7 @@
 namespace App\Models;
 
 // use Illuminate\Contracts\Auth\MustVerifyEmail;
+use App\Enums\Rol;
 use Database\Factories\UserFactory;
 use Filament\Models\Contracts\FilamentUser;
 use Filament\Panel;
@@ -18,14 +19,23 @@ class User extends Authenticatable implements FilamentUser
     /**
      * Acceso al panel de administración Filament.
      *
-     * Fase 1: cualquier usuario registrado es administrador. En producción
-     * (Dinahosting) esto es necesario porque, fuera de `local`, Filament exige
-     * que el modelo implemente FilamentUser. Si en el futuro hay clientes con
-     * cuenta, restringir aquí (p. ej. por rol o dominio de email).
+     * Tanto administradores como empleados acceden al panel; lo que pueden hacer
+     * dentro se controla por rol (ver los recursos Filament y App\Enums\Rol).
+     * Fuera de `local`, Filament exige que el modelo implemente FilamentUser.
      */
     public function canAccessPanel(Panel $panel): bool
     {
         return true;
+    }
+
+    public function esAdmin(): bool
+    {
+        return $this->rol === Rol::Admin;
+    }
+
+    public function esEmpleado(): bool
+    {
+        return $this->rol === Rol::Empleado;
     }
 
     /**
@@ -36,6 +46,7 @@ class User extends Authenticatable implements FilamentUser
     protected $fillable = [
         'name',
         'email',
+        'rol',
         'password',
     ];
 
@@ -59,6 +70,7 @@ class User extends Authenticatable implements FilamentUser
         return [
             'email_verified_at' => 'datetime',
             'password' => 'hashed',
+            'rol' => Rol::class,
         ];
     }
 }

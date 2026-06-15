@@ -22,6 +22,7 @@ class Reserva extends Model
 
     protected $fillable = [
         'referencia',
+        'cliente_id',
         'experiencia_id',
         'pack_id',
         'fecha_evento',
@@ -67,6 +68,14 @@ class Reserva extends Model
     public static function generarReferencia(): string
     {
         return 'TR-'.now()->format('Ymd').'-'.Str::upper(Str::random(5));
+    }
+
+    /**
+     * @return BelongsTo<Cliente, $this>
+     */
+    public function cliente(): BelongsTo
+    {
+        return $this->belongsTo(Cliente::class, 'cliente_id');
     }
 
     /**

@@ -5,6 +5,7 @@ namespace App\Services;
 use App\Enums\EstadoReserva;
 use App\Enums\Turno;
 use App\Exceptions\ExperienciaNoDisponibleException;
+use App\Models\Cliente;
 use App\Models\Experiencia;
 use App\Models\Pack;
 use App\Models\Reserva;
@@ -68,7 +69,11 @@ class ReservaService
         $zona = $this->calculadora->zonaPara($datos['concello']);
 
         return DB::transaction(function () use ($datos, $experiencia, $pack, $turno, $zona, $desglose): Reserva {
+            // Registro de cliente (solo se conserva tras aceptar la LOPD).
+            $cliente = $this->registrarCliente($datos);
+
             $reserva = Reserva::create([
+                'cliente_id' => $cliente?->id,
                 'experiencia_id' => $experiencia->id,
                 'pack_id' => $pack?->id,
                 'fecha_evento' => $datos['fecha_evento'],
@@ -94,6 +99,30 @@ class ReservaService
 
             return $reserva;
         });
+    }
+
+    /**
+     * Crea o actualiza el registro del cliente. Solo se conservan los datos si
+     * el cliente ha aceptado la LOPD (el configurador lo exige como obligatorio;
+     * por defecto se asume consentimiento para datos creados desde el backend).
+     *
+     * @param  array<string, mixed>  $datos
+     */
+    private function registrarCliente(array $datos): ?Cliente
+    {
+        if (! ($datos['acepto_lopd'] ?? true)) {
+            return null;
+        }
+
+        return Cliente::updateOrCreate(
+            ['email' => $datos['cliente_email']],
+            [
+                'nombre' => $datos['cliente_nombre'],
+                'telefono' => $datos['cliente_telefono'],
+                'acepto_lopd' => true,
+                'consentimiento_en' => now(),
+            ],
+        );
     }
 
     private function resolverTurno(Experiencia $experiencia, Turno|string|null $turno): Turno

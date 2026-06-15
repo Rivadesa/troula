@@ -14,6 +14,7 @@ use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
+use Illuminate\Database\Eloquent\Model;
 
 class ReservaResource extends Resource
 {
@@ -39,6 +40,22 @@ class ReservaResource extends Resource
     public static function getNavigationBadgeColor(): ?string
     {
         return 'warning';
+    }
+
+    // Los empleados ven las reservas en modo lectura; solo los admins gestionan.
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->esAdmin() ?? false;
+    }
+
+    public static function canEdit(Model $record): bool
+    {
+        return auth()->user()?->esAdmin() ?? false;
+    }
+
+    public static function canDelete(Model $record): bool
+    {
+        return auth()->user()?->esAdmin() ?? false;
     }
 
     public static function form(Form $form): Form
@@ -127,6 +144,7 @@ class ReservaResource extends Resource
                 Tables\Actions\Action::make('cambiarEstado')
                     ->label('Estado')
                     ->icon('heroicon-o-arrow-path')
+                    ->visible(fn (): bool => auth()->user()?->esAdmin() ?? false)
                     ->fillForm(fn (Reserva $record): array => ['estado' => $record->estado])
                     ->form([
                         Forms\Components\Select::make('estado')
@@ -138,7 +156,8 @@ class ReservaResource extends Resource
             ])
             ->bulkActions([
                 Tables\Actions\BulkActionGroup::make([
-                    Tables\Actions\DeleteBulkAction::make(),
+                    Tables\Actions\DeleteBulkAction::make()
+                        ->visible(fn (): bool => auth()->user()?->esAdmin() ?? false),
                 ]),
             ]);
     }

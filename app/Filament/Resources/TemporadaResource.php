@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Enums\TipoAjuste;
+use App\Filament\Concerns\SoloAdministradores;
 use App\Filament\Resources\TemporadaResource\Pages;
 use App\Models\Temporada;
 use Filament\Forms;
@@ -13,6 +14,8 @@ use Filament\Tables\Table;
 
 class TemporadaResource extends Resource
 {
+    use SoloAdministradores;
+
     protected static ?string $model = Temporada::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-calendar-days';

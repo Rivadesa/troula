@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Concerns\SoloAdministradores;
 use App\Filament\Resources\PackResource\Pages;
 use App\Filament\Resources\PackResource\RelationManagers\ComplementosRelationManager;
 use App\Models\Pack;
@@ -15,6 +16,8 @@ use Illuminate\Support\Str;
 
 class PackResource extends Resource
 {
+    use SoloAdministradores;
+
     protected static ?string $model = Pack::class;
 
     protected static ?string $navigationIcon = 'heroicon-o-gift';
