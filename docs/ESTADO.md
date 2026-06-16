@@ -29,8 +29,8 @@ Documento de continuidad: dónde está el proyecto, qué está hecho, qué queda
 ## Decisiones clave (`// DECISIÓN` en el código)
 
 - **PHP `^8.2`** en `composer.json` (local y producción corren en 8.4).
-- **Base de datos:** SQLite en local, tests y **en la instancia de producción actual**
-  (rápido de poner en marcha). Migraciones portables → se puede pasar a MySQL sin tocar código.
+- **Base de datos:** **MySQL en producción** (`dbvqgakk4knpd2` en SiteGround); SQLite en local y
+  tests. Migraciones portables. Comando `db:copiar-a-mysql` para migrar datos sin pérdida.
 - **Tailwind + flatpickr por CDN** en el frontend → sin paso de build (npm) para desplegar.
 - **Enums PHP** (`App\Enums\*`) en columnas `string`.
 - **Roles** con columna `users.rol` + trait `App\Filament\Concerns\SoloAdministradores`.
@@ -69,7 +69,7 @@ Documento de continuidad: dónde está el proyecto, qué está hecho, qué queda
    `QUEUE_CONNECTION=database` + cron de `schedule:run`.
 3. **Datos de empresa:** rellenar Configuración → Empresa (logo, contacto, redes, URL privacidad).
 4. **Página de política de privacidad** real a la que enlace el checkbox LOPD.
-5. **(Opcional) Pasar a MySQL** si se prefiere sobre SQLite en producción.
+5. ~~Pasar a MySQL~~ ✅ Hecho (producción en MySQL).
 6. **Fase 2:** integración de pagos con Redsys sobre `App\Contracts\PasarelaPago`
    (señal al reservar + saldo antes del evento) y activación de la máquina de estados.
 

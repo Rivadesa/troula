@@ -243,8 +243,8 @@ php artisan optimize && php artisan filament:optimize
 cd .. && rm -rf public_html && ln -s app/public public_html
 ```
 
-> **Nota:** la instancia actual usa **SQLite** (rápido, sin crear BD). Para pasar a MySQL:
-> crea la BD en Site Tools, ajusta `DB_*` en `.env` y `php artisan migrate --force`.
+> **Nota:** la instancia de producción usa **MySQL** (creada en SiteGround). Para migrar datos
+> entre motores sin pérdida existe el comando `php artisan db:copiar-a-mysql` (lee del SQLite local).
 
 ### Actualizar producción
 
