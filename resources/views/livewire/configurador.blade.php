@@ -319,10 +319,11 @@
                         <div class="rounded-xl bg-marca-50/60 p-4">
                             <label class="flex items-start gap-3">
                                 <input type="checkbox" wire:model.live="aceptoLopd" class="mt-0.5 h-5 w-5 rounded border-gray-300 text-marca-600 focus:ring-marca-500">
+                                @php $urlPrivacidad = $empresa->politica_privacidad_url ?: (filled($empresa->politica_privacidad) ? route('privacidad') : null); @endphp
                                 <span class="text-sm text-gray-600">
                                     He leído y acepto la
-                                    @if ($empresa->politica_privacidad_url)
-                                        <a href="{{ $empresa->politica_privacidad_url }}" target="_blank" rel="noopener" class="font-medium text-marca-700 underline">política de privacidad</a>
+                                    @if ($urlPrivacidad)
+                                        <a href="{{ $urlPrivacidad }}" target="_blank" rel="noopener" class="font-medium text-marca-700 underline">política de privacidad</a>
                                     @else
                                         <span class="font-medium text-marca-700">política de privacidad</span>
                                     @endif

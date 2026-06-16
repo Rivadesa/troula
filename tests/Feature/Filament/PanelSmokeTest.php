@@ -52,6 +52,10 @@ it('carga la página de configuración de correo', function () {
     $this->get('/admin/configuracion-correo')->assertOk();
 });
 
+it('carga la página de política de privacidad del panel', function () {
+    $this->get('/admin/pagina-privacidad')->assertOk();
+});
+
 it('carga la edición de un pack y de una zona de porte', function () {
     $pack = Pack::firstOrFail();
     $zona = ZonaPorte::firstOrFail();
