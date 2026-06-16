@@ -51,7 +51,9 @@ class CategoriaComplementoResource extends Resource
             Forms\Components\FileUpload::make('imagen')
                 ->image()
                 ->directory('categorias')
-                ->imageEditor(),
+                ->imageEditor()
+                ->maxSize(2048)
+                ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp']),
         ]);
     }
 

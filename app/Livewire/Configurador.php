@@ -15,6 +15,7 @@ use App\Services\ReservaService;
 use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
+use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -59,6 +60,9 @@ class Configurador extends Component
     public ?string $observaciones = null;
 
     public bool $aceptoLopd = false;
+
+    /** Honeypot anti-spam: campo oculto que solo rellenan los bots. */
+    public string $website = '';
 
     // Estado final tras enviar.
     public ?string $referencia = null;
@@ -275,6 +279,20 @@ class Configurador extends Component
 
     public function enviar(ReservaService $reservas): void
     {
+        // Honeypot: si el campo trampa viene relleno, es un bot. Cortamos en silencio.
+        if (filled($this->website)) {
+            return;
+        }
+
+        // Rate limit por IP: máximo 5 envíos por minuto.
+        $clave = 'reserva:'.request()->ip();
+        if (RateLimiter::tooManyAttempts($clave, 5)) {
+            throw ValidationException::withMessages([
+                'aceptoLopd' => 'Demasiados intentos. Espera un momento e inténtalo de nuevo.',
+            ]);
+        }
+        RateLimiter::hit($clave, 60);
+
         // Revalida todos los pasos antes de crear la reserva.
         foreach (range(1, self::ULTIMO_PASO) as $paso) {
             $this->validarPaso($paso);
@@ -364,11 +382,12 @@ class Configurador extends Component
             ),
             3 => $this->validarEvento(),
             4 => $this->validate([
-                'clienteNombre' => 'required|string|max:255',
-                'clienteEmail' => 'required|email|max:255',
-                'clienteTelefono' => 'required|string|max:255',
-                'aceptoLopd' => 'accepted',
+                'clienteNombre' => ['required', 'string', 'max:120'],
+                'clienteEmail' => ['required', 'email:rfc', 'max:180'],
+                'clienteTelefono' => ['required', 'string', 'max:30', 'regex:/^[0-9 +().\-]{6,30}$/'],
+                'aceptoLopd' => ['accepted'],
             ], [
+                'clienteTelefono.regex' => 'Introduce un teléfono válido.',
                 'aceptoLopd.accepted' => 'Debes aceptar la política de privacidad para continuar.',
             ], [
                 'clienteNombre' => 'nombre',
@@ -383,11 +402,14 @@ class Configurador extends Component
     {
         $this->validate([
             'fecha' => 'required|date|after_or_equal:today',
-            'concello' => 'required|string',
+            'concello' => 'required|string|max:120|exists:concello_zona,concello',
+            'lugarEvento' => 'nullable|string|max:180',
+            'observaciones' => 'nullable|string|max:1000',
         ], [
             'fecha.required' => 'Selecciona la fecha del evento.',
             'fecha.after_or_equal' => 'La fecha debe ser hoy o posterior.',
             'concello.required' => 'Selecciona el concello del evento.',
+            'concello.exists' => 'Selecciona un concello válido de la lista.',
         ]);
 
         if ($this->experiencia !== null && $this->experiencia->permite_turnos) {

@@ -9,7 +9,9 @@ use App\Models\Cliente;
 use App\Models\Experiencia;
 use App\Models\Pack;
 use App\Models\Reserva;
+use Illuminate\Support\Facades\Cache;
 use Illuminate\Support\Facades\DB;
+use Illuminate\Validation\ValidationException;
 
 /**
  * Orquesta la creación de una reserva: valida disponibilidad, calcula el precio
@@ -48,15 +50,21 @@ class ReservaService
     public function crear(array $datos): Reserva
     {
         $experiencia = Experiencia::findOrFail($datos['experiencia_id']);
+
+        if (! $experiencia->activo) {
+            throw ValidationException::withMessages([
+                'experienciaId' => 'La experiencia seleccionada no está disponible.',
+            ]);
+        }
+
         $pack = ! empty($datos['pack_id']) ? Pack::find($datos['pack_id']) : null;
+        // Descarta packs inválidos (inactivos o de otra experiencia): se trata como a la carta.
+        if ($pack !== null && (! $pack->activo || $pack->experiencia_id !== $experiencia->id)) {
+            $pack = null;
+        }
 
         $turno = $this->resolverTurno($experiencia, $datos['turno'] ?? null);
         $complementos = $datos['complementos'] ?? [];
-
-        if (($datos['comprobar_disponibilidad'] ?? true)
-            && ! $this->disponibilidad->estaDisponible($experiencia, $datos['fecha_evento'], $turno)) {
-            throw ExperienciaNoDisponibleException::paraFecha($experiencia->nombre, $datos['fecha_evento']);
-        }
 
         $desglose = $this->calculadora->calcular(
             experiencia: $experiencia,
@@ -68,36 +76,47 @@ class ReservaService
 
         $zona = $this->calculadora->zonaPara($datos['concello']);
 
-        return DB::transaction(function () use ($datos, $experiencia, $pack, $turno, $zona, $desglose): Reserva {
-            // Registro de cliente (solo se conserva tras aceptar la LOPD).
-            $cliente = $this->registrarCliente($datos);
+        // Lock atómico por experiencia + fecha: serializa la comprobación de disponibilidad y
+        // la creación de la reserva para impedir dobles reservas en condiciones de carrera.
+        $lock = Cache::lock('reserva:'.$experiencia->id.':'.$datos['fecha_evento'], 10);
 
-            $reserva = Reserva::create([
-                'cliente_id' => $cliente?->id,
-                'experiencia_id' => $experiencia->id,
-                'pack_id' => $pack?->id,
-                'fecha_evento' => $datos['fecha_evento'],
-                'turno' => $turno,
-                'concello' => $datos['concello'],
-                'zona_id' => $zona?->id,
-                'cliente_nombre' => $datos['cliente_nombre'],
-                'cliente_email' => $datos['cliente_email'],
-                'cliente_telefono' => $datos['cliente_telefono'],
-                'lugar_evento' => $datos['lugar_evento'] ?? null,
-                'observaciones' => $datos['observaciones'] ?? null,
-                'estado' => $datos['estado'] ?? EstadoReserva::Solicitada,
-                ...$desglose->paraReserva(),
-            ]);
-
-            // Congela las líneas de complementos con su precio efectivo.
-            foreach ($desglose->lineasComplementos as $linea) {
-                $reserva->complementos()->attach($linea['complemento_id'], [
-                    'cantidad' => $linea['cantidad'],
-                    'precio_congelado' => $linea['precio_unitario'],
-                ]);
+        return $lock->block(5, function () use ($datos, $experiencia, $pack, $turno, $zona, $desglose): Reserva {
+            if (($datos['comprobar_disponibilidad'] ?? true)
+                && ! $this->disponibilidad->estaDisponible($experiencia, $datos['fecha_evento'], $turno)) {
+                throw ExperienciaNoDisponibleException::paraFecha($experiencia->nombre, $datos['fecha_evento']);
             }
 
-            return $reserva;
+            return DB::transaction(function () use ($datos, $experiencia, $pack, $turno, $zona, $desglose): Reserva {
+                // Registro de cliente (solo se conserva tras aceptar la LOPD).
+                $cliente = $this->registrarCliente($datos);
+
+                $reserva = Reserva::create([
+                    'cliente_id' => $cliente?->id,
+                    'experiencia_id' => $experiencia->id,
+                    'pack_id' => $pack?->id,
+                    'fecha_evento' => $datos['fecha_evento'],
+                    'turno' => $turno,
+                    'concello' => $datos['concello'],
+                    'zona_id' => $zona?->id,
+                    'cliente_nombre' => $datos['cliente_nombre'],
+                    'cliente_email' => $datos['cliente_email'],
+                    'cliente_telefono' => $datos['cliente_telefono'],
+                    'lugar_evento' => $datos['lugar_evento'] ?? null,
+                    'observaciones' => $datos['observaciones'] ?? null,
+                    'estado' => $datos['estado'] ?? EstadoReserva::Solicitada,
+                    ...$desglose->paraReserva(),
+                ]);
+
+                // Congela las líneas de complementos con su precio efectivo.
+                foreach ($desglose->lineasComplementos as $linea) {
+                    $reserva->complementos()->attach($linea['complemento_id'], [
+                        'cantidad' => $linea['cantidad'],
+                        'precio_congelado' => $linea['precio_unitario'],
+                    ]);
+                }
+
+                return $reserva;
+            });
         });
     }
 

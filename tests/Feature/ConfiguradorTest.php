@@ -97,6 +97,29 @@ it('exige aceptar la política de privacidad (LOPD) para enviar', function () {
         ->assertSet('paso', 4);
 });
 
+it('el honeypot bloquea los envíos automatizados (anti-spam)', function () {
+    $fotomaton = Experiencia::where('slug', 'fotomaton-clasico')->firstOrFail();
+
+    Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $fotomaton->id)
+        ->call('siguiente')
+        ->call('siguiente')
+        ->set('fecha', '2027-05-01')
+        ->set('concello', 'A Coruña')
+        ->call('siguiente')
+        ->set('clienteNombre', 'Bot')
+        ->set('clienteEmail', 'bot@spam.test')
+        ->set('clienteTelefono', '600000000')
+        ->set('aceptoLopd', true)
+        ->call('siguiente')
+        ->set('website', 'http://spam.example')   // un bot rellena el honeypot
+        ->call('enviar')
+        ->assertHasNoErrors();
+
+    expect(Reserva::where('cliente_email', 'bot@spam.test')->exists())->toBeFalse();
+    Mail::assertNothingQueued();
+});
+
 it('no deja avanzar el paso del evento sin fecha ni concello', function () {
     $fotomaton = Experiencia::where('slug', 'fotomaton-clasico')->firstOrFail();
 

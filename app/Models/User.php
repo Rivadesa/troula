@@ -19,13 +19,12 @@ class User extends Authenticatable implements FilamentUser
     /**
      * Acceso al panel de administración Filament.
      *
-     * Tanto administradores como empleados acceden al panel; lo que pueden hacer
-     * dentro se controla por rol (ver los recursos Filament y App\Enums\Rol).
-     * Fuera de `local`, Filament exige que el modelo implemente FilamentUser.
+     * Solo usuarios con un rol válido (admin o empleado). Lo que pueden hacer
+     * dentro se controla además por rol (ver los recursos Filament y App\Enums\Rol).
      */
     public function canAccessPanel(Panel $panel): bool
     {
-        return true;
+        return $this->esAdmin() || $this->esEmpleado();
     }
 
     public function esAdmin(): bool

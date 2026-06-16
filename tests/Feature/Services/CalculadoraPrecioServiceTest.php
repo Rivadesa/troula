@@ -107,6 +107,38 @@ it('usa el precio_override de la experiencia cuando existe', function () {
         ->and($desglose->lineasComplementos[0]['precio_unitario'])->toBe(30.0);
 });
 
+it('ignora complementos que la experiencia no ofrece (defensa anti-manipulación)', function () {
+    $experiencia = Experiencia::factory()->create(['precio_base' => 400]);
+    $categoria = CategoriaComplemento::factory()->create();
+    $ajeno = Complemento::factory()->create(['categoria_id' => $categoria->id, 'precio' => 999]);
+
+    $desglose = $this->calc->calcular($experiencia, complementos: [$ajeno->id => 1], fechaEvento: '2026-07-15');
+
+    expect($desglose->totalComplementos)->toBe(0.0)
+        ->and($desglose->total)->toBe(400.0);
+});
+
+it('acota la cantidad de un complemento a su cantidad_maxima', function () {
+    [$experiencia, $complemento] = experienciaConComplemento(400, 50); // cantidad_maxima = 5
+
+    // Petición manipulada con 99 unidades → se cobra como 5.
+    $desglose = $this->calc->calcular($experiencia, complementos: [$complemento->id => 99], fechaEvento: '2026-07-15');
+
+    expect($desglose->totalComplementos)->toBe(250.0) // 50 x 5
+        ->and($desglose->lineasComplementos[0]['cantidad'])->toBe(5);
+});
+
+it('ignora complementos inactivos', function () {
+    $experiencia = Experiencia::factory()->create(['precio_base' => 400]);
+    $categoria = CategoriaComplemento::factory()->create();
+    $complemento = Complemento::factory()->create(['categoria_id' => $categoria->id, 'precio' => 50, 'activo' => false]);
+    $experiencia->complementos()->attach($complemento->id, ['cantidad_maxima' => 3]);
+
+    $desglose = $this->calc->calcular($experiencia, complementos: [$complemento->id => 1], fechaEvento: '2026-07-15');
+
+    expect($desglose->totalComplementos)->toBe(0.0);
+});
+
 it('parte del precio cerrado del pack en lugar del precio base de la experiencia', function () {
     $experiencia = Experiencia::factory()->create(['precio_base' => 400]);
     $pack = Pack::factory()->create(['experiencia_id' => $experiencia->id, 'precio' => 500]);

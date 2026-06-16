@@ -66,6 +66,8 @@ class PackResource extends Resource
                     ->image()
                     ->directory('packs')
                     ->imageEditor()
+                    ->maxSize(2048)
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp'])
                     ->columnSpanFull(),
                 Forms\Components\Toggle::make('activo')
                     ->default(true),

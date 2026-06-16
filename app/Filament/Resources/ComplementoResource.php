@@ -63,7 +63,9 @@ class ComplementoResource extends Resource
                 Forms\Components\FileUpload::make('imagen')
                     ->image()
                     ->directory('complementos')
-                    ->imageEditor(),
+                    ->imageEditor()
+                    ->maxSize(2048)
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp']),
                 Forms\Components\Toggle::make('activo')
                     ->default(true),
             ])->columns(2),

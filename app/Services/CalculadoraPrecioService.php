@@ -131,30 +131,35 @@ class CalculadoraPrecioService
         $lineas = [];
 
         foreach ($complementos as $complementoId => $cantidad) {
+            $complementoId = (int) $complementoId;
             $cantidad = (int) $cantidad;
+
             if ($cantidad <= 0) {
                 continue;
             }
 
-            $complementoId = (int) $complementoId;
             /** @var Complemento|null $ofrecido */
             $ofrecido = $ofrecidos->get($complementoId);
-            $complemento = $ofrecido ?? Complemento::find($complementoId);
 
-            if ($complemento === null) {
+            // Solo se aceptan complementos que la experiencia ofrece y que estén activos.
+            // (Defensa frente a IDs manipulados en la petición Livewire.)
+            if ($ofrecido === null || ! $ofrecido->activo) {
                 continue;
             }
 
+            // Cantidad acotada al máximo permitido por el pivote.
+            $cantidad = min($cantidad, max(1, (int) $ofrecido->pivot->cantidad_maxima));
+
             // precio_override de la experiencia si existe; si no, precio del complemento.
-            $override = $ofrecido?->pivot?->precio_override;
-            $precioUnitario = (float) ($override ?? $complemento->precio);
+            $override = $ofrecido->pivot->precio_override;
+            $precioUnitario = (float) ($override ?? $ofrecido->precio);
 
             $subtotalLinea = round($precioUnitario * $cantidad, 2);
             $total += $subtotalLinea;
 
             $lineas[] = [
-                'complemento_id' => $complemento->id,
-                'nombre' => $complemento->nombre,
+                'complemento_id' => $ofrecido->id,
+                'nombre' => $ofrecido->nombre,
                 'cantidad' => $cantidad,
                 'precio_unitario' => round($precioUnitario, 2),
                 'subtotal' => $subtotalLinea,

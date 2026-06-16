@@ -10,18 +10,20 @@ class DatabaseSeeder extends Seeder
 {
     public function run(): void
     {
-        // Usuario administrador del panel Filament (/admin).
-        // DECISIÓN: emails neutros para el repo; cámbialos en producción.
-        User::query()->updateOrCreate(
-            ['email' => 'admin@troula.test'],
-            ['name' => 'Administración Troula', 'rol' => Rol::Admin, 'password' => bcrypt('password')],
-        );
+        // Usuarios demo SOLO fuera de producción: evita crear cuentas con contraseña
+        // conocida o resetear contraseñas reales si alguien ejecuta db:seed en el servidor.
+        // En producción, crea el admin con `php artisan make:filament-user`.
+        if (! app()->isProduction()) {
+            User::query()->updateOrCreate(
+                ['email' => 'admin@troula.test'],
+                ['name' => 'Administración Troula', 'rol' => Rol::Admin, 'password' => bcrypt('password')],
+            );
 
-        // Usuario empleado de ejemplo (solo ve reservas y calendario).
-        User::query()->updateOrCreate(
-            ['email' => 'empleado@troula.test'],
-            ['name' => 'Empleado Troula', 'rol' => Rol::Empleado, 'password' => bcrypt('password')],
-        );
+            User::query()->updateOrCreate(
+                ['email' => 'empleado@troula.test'],
+                ['name' => 'Empleado Troula', 'rol' => Rol::Empleado, 'password' => bcrypt('password')],
+            );
+        }
 
         $this->call([
             CatalogoSeeder::class,

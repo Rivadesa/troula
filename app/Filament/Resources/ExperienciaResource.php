@@ -59,7 +59,9 @@ class ExperienciaResource extends Resource
                 Forms\Components\FileUpload::make('imagen')
                     ->image()
                     ->directory('experiencias')
-                    ->imageEditor(),
+                    ->imageEditor()
+                    ->maxSize(2048)
+                    ->acceptedFileTypes(['image/jpeg', 'image/png', 'image/webp']),
             ])->columns(2),
 
             Forms\Components\Section::make('Disponibilidad y orden')->schema([

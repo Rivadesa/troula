@@ -293,6 +293,12 @@
                 @if ($paso === 4)
                     <h2 class="mb-5 text-2xl font-bold text-gray-900">Tus datos de contacto</h2>
                     <div class="space-y-5 rounded-3xl border border-gray-100 bg-white p-6 shadow-sm">
+                        {{-- Honeypot anti-spam: oculto a personas; los bots lo rellenan. --}}
+                        <div aria-hidden="true" style="position:absolute;left:-9999px;width:1px;height:1px;overflow:hidden">
+                            <label>No rellenar este campo
+                                <input type="text" wire:model="website" tabindex="-1" autocomplete="off">
+                            </label>
+                        </div>
                         <div>
                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Nombre y apellidos</label>
                             <input type="text" wire:model="clienteNombre" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:border-marca-500 focus:ring-marca-500">
