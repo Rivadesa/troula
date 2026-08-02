@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Concerns\SoloAdministradores;
 use App\Filament\Resources\PackResource\Pages;
+use App\Filament\Resources\PackResource\RelationManagers\BasesRelationManager;
 use App\Filament\Resources\PackResource\RelationManagers\ComplementosRelationManager;
 use App\Models\Pack;
 use Filament\Forms;
@@ -37,11 +38,12 @@ class PackResource extends Resource
         return $form->schema([
             Forms\Components\Section::make()->schema([
                 Forms\Components\Select::make('experiencia_id')
-                    ->label('Experiencia')
+                    ->label('Máquina base por defecto')
                     ->relationship('experiencia', 'nombre')
                     ->searchable()
                     ->preload()
-                    ->required(),
+                    ->required()
+                    ->helperText('Se incluye sin suplemento. Las alternativas se gestionan abajo, al editar el pack.'),
                 Forms\Components\TextInput::make('nombre')
                     ->required()
                     ->maxLength(255)
@@ -106,6 +108,7 @@ class PackResource extends Resource
     {
         return [
             ComplementosRelationManager::class,
+            BasesRelationManager::class,
         ];
     }
 

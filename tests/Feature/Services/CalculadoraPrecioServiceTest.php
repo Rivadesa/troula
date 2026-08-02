@@ -187,6 +187,122 @@ it('si el concello no está mapeado no añade porte ni montaje', function () {
         ->and($desglose->montaje)->toBe(0.0);
 });
 
+// ---------------------------------------------------------------------------
+// Horas extra
+// ---------------------------------------------------------------------------
+
+it('suma las horas extra al total con el precio por hora de la experiencia', function () {
+    $experiencia = Experiencia::factory()->conHorasExtra(70)->create(['precio_base' => 450]);
+
+    $desglose = $this->calc->calcular($experiencia, fechaEvento: '2026-07-15', horasExtra: 2);
+
+    expect($desglose->horasExtra)->toBe(2)
+        ->and($desglose->importeHorasExtra)->toBe(140.0)
+        ->and($desglose->total)->toBe(590.0)          // 450 + 140
+        ->and($desglose->subtotal)->toBe(450.0);       // la base no cambia
+});
+
+it('ignora las horas extra si la experiencia no tiene precio por hora', function () {
+    $experiencia = Experiencia::factory()->create(['precio_base' => 450, 'precio_hora_extra' => null]);
+
+    $desglose = $this->calc->calcular($experiencia, fechaEvento: '2026-07-15', horasExtra: 3);
+
+    expect($desglose->horasExtra)->toBe(0)
+        ->and($desglose->importeHorasExtra)->toBe(0.0)
+        ->and($desglose->total)->toBe(450.0);
+});
+
+it('acota las horas extra al máximo y descarta valores negativos', function () {
+    $experiencia = Experiencia::factory()->conHorasExtra(70)->create(['precio_base' => 450]);
+
+    $tope = CalculadoraPrecioService::MAX_HORAS_EXTRA;
+
+    expect($this->calc->calcular($experiencia, fechaEvento: '2026-07-15', horasExtra: 99)->horasExtra)->toBe($tope)
+        ->and($this->calc->calcular($experiencia, fechaEvento: '2026-07-15', horasExtra: -5)->horasExtra)->toBe(0);
+});
+
+// ---------------------------------------------------------------------------
+// Complementos "a consultar"
+// ---------------------------------------------------------------------------
+
+it('los complementos a consultar se listan aparte y NO suman al total', function () {
+    $experiencia = Experiencia::factory()->create(['precio_base' => 400]);
+    $categoria = CategoriaComplemento::factory()->create();
+    $aConsultar = Complemento::factory()->aConsultar()->create(['categoria_id' => $categoria->id]);
+    $experiencia->complementos()->attach($aConsultar->id, ['cantidad_maxima' => 3]);
+
+    $desglose = $this->calc->calcular($experiencia, complementos: [$aConsultar->id => 2], fechaEvento: '2026-07-15');
+
+    expect($desglose->totalComplementos)->toBe(0.0)
+        ->and($desglose->total)->toBe(400.0)
+        ->and($desglose->lineasComplementos)->toBeEmpty()
+        ->and($desglose->tieneLineasAConsultar())->toBeTrue()
+        ->and($desglose->lineasAConsultar[0]['complemento_id'])->toBe($aConsultar->id)
+        ->and($desglose->lineasAConsultar[0]['cantidad'])->toBe(2);
+});
+
+it('un complemento a consultar no contamina el total de los que sí suman', function () {
+    [$experiencia, $complemento] = experienciaConComplemento(400, 50);
+    $categoria = CategoriaComplemento::factory()->create();
+    $aConsultar = Complemento::factory()->aConsultar()->create(['categoria_id' => $categoria->id]);
+    $experiencia->complementos()->attach($aConsultar->id, ['cantidad_maxima' => 1]);
+
+    $desglose = $this->calc->calcular(
+        $experiencia,
+        complementos: [$complemento->id => 1, $aConsultar->id => 1],
+        fechaEvento: '2026-07-15',
+    );
+
+    expect($desglose->totalComplementos)->toBe(50.0)
+        ->and($desglose->total)->toBe(450.0)
+        ->and($desglose->lineasComplementos)->toHaveCount(1)
+        ->and($desglose->lineasAConsultar)->toHaveCount(1);
+});
+
+// ---------------------------------------------------------------------------
+// Packs con base intercambiable
+// ---------------------------------------------------------------------------
+
+it('suma el suplemento de la máquina base elegida al precio del pack', function () {
+    $base = Experiencia::factory()->create(['precio_base' => 450]);
+    $alternativa = Experiencia::factory()->create(['precio_base' => 530]);
+    $pack = Pack::factory()->create(['experiencia_id' => $base->id, 'precio' => 700]);
+    $pack->basesDisponibles()->attach($alternativa->id, ['suplemento' => 80]);
+
+    $desglose = $this->calc->calcular($alternativa, pack: $pack->fresh(), fechaEvento: '2026-07-15');
+
+    expect($desglose->subtotal)->toBe(780.0)      // 700 + 80
+        ->and($desglose->suplementoBase)->toBe(80.0)
+        ->and($desglose->total)->toBe(780.0);
+});
+
+it('la máquina base por defecto del pack no lleva suplemento', function () {
+    $base = Experiencia::factory()->create(['precio_base' => 450]);
+    $alternativa = Experiencia::factory()->create(['precio_base' => 530]);
+    $pack = Pack::factory()->create(['experiencia_id' => $base->id, 'precio' => 700]);
+    $pack->basesDisponibles()->attach($alternativa->id, ['suplemento' => 80]);
+
+    $desglose = $this->calc->calcular($base, pack: $pack->fresh(), fechaEvento: '2026-07-15');
+
+    expect($desglose->subtotal)->toBe(700.0)
+        ->and($desglose->suplementoBase)->toBe(0.0);
+});
+
+it('el ajuste de temporada se aplica sobre el pack con su suplemento', function () {
+    $base = Experiencia::factory()->create(['precio_base' => 450]);
+    $alternativa = Experiencia::factory()->create(['precio_base' => 530]);
+    $pack = Pack::factory()->create(['experiencia_id' => $base->id, 'precio' => 700]);
+    $pack->basesDisponibles()->attach($alternativa->id, ['suplemento' => 100]);
+    Temporada::factory()->porcentaje(10)->rango('2026-06-01', '2026-09-15')->create();
+
+    $desglose = $this->calc->calcular($alternativa, pack: $pack->fresh(), fechaEvento: '2026-07-15');
+
+    // 10 % sobre 800 (700 + 100), no sobre 700.
+    expect($desglose->subtotal)->toBe(800.0)
+        ->and($desglose->ajusteTemporada)->toBe(80.0)
+        ->and($desglose->total)->toBe(880.0);
+});
+
 it('devuelve el desglose completo combinando todas las líneas', function () {
     [$experiencia, $complemento] = experienciaConComplemento(400, 50, override: 40);
     Temporada::factory()->porcentaje(20)->rango('2026-06-01', '2026-09-15')->create(['nombre' => 'Alta']);
@@ -215,5 +331,6 @@ it('devuelve el desglose completo combinando todas las líneas', function () {
         'porte' => 60.0,
         'montaje' => 40.0,
         'total' => 700.0,
+        'horas_extra' => 0,
     ]);
 });

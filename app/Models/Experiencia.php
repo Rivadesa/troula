@@ -20,6 +20,8 @@ class Experiencia extends Model
         'slug',
         'descripcion',
         'precio_base',
+        'duracion_horas',
+        'precio_hora_extra',
         'imagen',
         'unidades',
         'permite_turnos',
@@ -29,11 +31,21 @@ class Experiencia extends Model
 
     protected $casts = [
         'precio_base' => 'decimal:2',
+        'duracion_horas' => 'integer',
+        'precio_hora_extra' => 'decimal:2',
         'unidades' => 'integer',
         'permite_turnos' => 'boolean',
         'activo' => 'boolean',
         'orden' => 'integer',
     ];
+
+    /**
+     * Solo se ofrecen horas extra si el admin ha puesto precio (> 0).
+     */
+    public function admiteHorasExtra(): bool
+    {
+        return $this->precio_hora_extra !== null && (float) $this->precio_hora_extra > 0;
+    }
 
     /**
      * Complementos que ofrece esta experiencia, con sus reglas (pivote).
@@ -43,17 +55,31 @@ class Experiencia extends Model
     public function complementos(): BelongsToMany
     {
         return $this->belongsToMany(Complemento::class, 'experiencia_complemento')
-            ->withPivot(['precio_override', 'obligatorio', 'cantidad_maxima', 'orden'])
+            ->withPivot(['precio_override', 'grupo', 'obligatorio', 'cantidad_maxima', 'orden'])
             ->withTimestamps()
             ->orderByPivot('orden');
     }
 
     /**
+     * Packs cuya base POR DEFECTO es esta experiencia.
+     *
      * @return HasMany<Pack, $this>
      */
     public function packs(): HasMany
     {
         return $this->hasMany(Pack::class, 'experiencia_id');
+    }
+
+    /**
+     * Packs en los que esta experiencia se ofrece como base alternativa (con suplemento).
+     *
+     * @return BelongsToMany<Pack, $this>
+     */
+    public function packsComoBase(): BelongsToMany
+    {
+        return $this->belongsToMany(Pack::class, 'pack_experiencia')
+            ->withPivot(['suplemento', 'orden'])
+            ->withTimestamps();
     }
 
     /**

@@ -21,20 +21,21 @@ class ReservaSeeder extends Seeder
         /** @var array<string, int> $comp slug => id */
         $comp = Complemento::pluck('id', 'slug')->all();
 
-        $fotomaton = Experiencia::where('slug', 'fotomaton-clasico')->firstOrFail();
+        $fotomaton = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail();
         $espejo = Experiencia::where('slug', 'espejo-magico')->firstOrFail();
-        $sofa = Experiencia::where('slug', 'photocall-sofa-decorado')->firstOrFail();
-        $cabina = Experiencia::where('slug', 'cabina-360')->firstOrFail();
-        $packBoda = Pack::where('slug', 'pack-boda-esencial')->firstOrFail();
+        $sofa = Experiencia::where('slug', 'fotomaton-photocall-tela')->firstOrFail();
+        $cabina = Experiencia::where('slug', 'plataforma-360')->firstOrFail();
+        $packBoda = Pack::where('slug', 'pack-bronce')->firstOrFail();
 
-        // 1. Fotomatón + Pack Boda Esencial, con extras. Confirmada.
+        // 1. Fotomatón + Pack Bronce, con extras y 2 horas extra. Confirmada.
         $reservas->crear([
             'experiencia_id' => $fotomaton->id,
             'pack_id' => $packBoda->id,
             'fecha_evento' => Carbon::now()->addDays(45)->toDateString(),
             'turno' => Turno::Manana,
+            'horas_extra' => 2,
             'concello' => 'Arteixo',
-            'complementos' => [$comp['tira-fotos-extra'] => 2, $comp['fondo-lentejuelas'] => 1],
+            'complementos' => [$comp['alfombra'] => 1, $comp['neon'] => 1],
             'cliente_nombre' => 'Lucía Varela',
             'cliente_email' => 'lucia.varela@example.com',
             'cliente_telefono' => '600123456',
@@ -51,10 +52,10 @@ class ReservaSeeder extends Seeder
             'turno' => Turno::Tarde,
             'concello' => 'A Coruña',
             'complementos' => [
-                $comp['impresiones-ilimitadas'] => 1,
-                $comp['fondo-personalizado'] => 1,
-                $comp['neon-personalizado'] => 1,
-                $comp['album-recuerdos'] => 1,
+                $comp['shimmer-wall'] => 1,
+                $comp['audiolibro-video'] => 1,
+                // Precio a consultar: queda registrado en la reserva pero no suma al total.
+                $comp['portafoto-iman'] => 1,
             ],
             'cliente_nombre' => 'Marcos Pena',
             'cliente_email' => 'marcos.pena@example.com',
@@ -69,7 +70,7 @@ class ReservaSeeder extends Seeder
             'experiencia_id' => $sofa->id,
             'fecha_evento' => Carbon::now()->addDays(30)->toDateString(),
             'concello' => 'Santiago de Compostela',
-            'complementos' => [$comp['fondo-floral'] => 1, $comp['alfombra-roja'] => 1],
+            'complementos' => [$comp['fondo-jardin'] => 1, $comp['alfombra'] => 1],
             'cliente_nombre' => 'Sara Iglesias',
             'cliente_email' => 'sara.iglesias@example.com',
             'cliente_telefono' => '620456789',
@@ -98,7 +99,7 @@ class ReservaSeeder extends Seeder
             'experiencia_id' => $cabina->id,
             'fecha_evento' => Carbon::now()->subDays(20)->toDateString(),
             'concello' => 'Carballo',
-            'complementos' => [$comp['neon-personalizado'] => 1, $comp['libro-firmas'] => 1],
+            'complementos' => [$comp['neon'] => 1, $comp['audiolibro-firmas'] => 1],
             'cliente_nombre' => 'Diego Souto',
             'cliente_email' => 'diego.souto@example.com',
             'cliente_telefono' => '630111222',
@@ -126,7 +127,7 @@ class ReservaSeeder extends Seeder
             'fecha_evento' => Carbon::now()->addDays(75)->toDateString(),
             'turno' => Turno::Manana,
             'concello' => 'Oleiros',
-            'complementos' => [$comp['impresiones-ilimitadas'] => 1, $comp['alfombra-roja'] => 1],
+            'complementos' => [$comp['glitter-corner-1'] => 1, $comp['alfombra'] => 1],
             'cliente_nombre' => 'Carlos Failde',
             'cliente_email' => 'carlos.failde@example.com',
             'cliente_telefono' => '650555666',

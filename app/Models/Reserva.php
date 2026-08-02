@@ -27,6 +27,7 @@ class Reserva extends Model
         'pack_id',
         'fecha_evento',
         'turno',
+        'horas_extra',
         'concello',
         'zona_id',
         'cliente_nombre',
@@ -46,6 +47,7 @@ class Reserva extends Model
     protected $casts = [
         'fecha_evento' => 'date',
         'turno' => Turno::class,
+        'horas_extra' => 'integer',
         'estado' => EstadoReserva::class,
         'subtotal' => 'decimal:2',
         'ajuste_temporada' => 'decimal:2',

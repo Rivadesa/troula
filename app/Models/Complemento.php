@@ -21,12 +21,14 @@ class Complemento extends Model
         'slug',
         'descripcion',
         'precio',
+        'a_consultar',
         'imagen',
         'activo',
     ];
 
     protected $casts = [
         'precio' => 'decimal:2',
+        'a_consultar' => 'boolean',
         'activo' => 'boolean',
     ];
 
@@ -44,7 +46,7 @@ class Complemento extends Model
     public function experiencias(): BelongsToMany
     {
         return $this->belongsToMany(Experiencia::class, 'experiencia_complemento')
-            ->withPivot(['precio_override', 'obligatorio', 'cantidad_maxima', 'orden'])
+            ->withPivot(['precio_override', 'grupo', 'obligatorio', 'cantidad_maxima', 'orden'])
             ->withTimestamps();
     }
 

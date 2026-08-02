@@ -17,18 +17,30 @@ use Carbon\CarbonInterface;
  * la lógica de cálculo vive aquí y NO se duplica en JS.
  *
  * Cadena de cálculo:
- *   1. Base: precio de la experiencia, o precio cerrado del pack si se elige uno.
+ *   1. Base: precio de la experiencia, o precio cerrado del pack (+ suplemento de la
+ *      máquina base elegida) si se elige uno.
  *   2. Ajuste por temporada sobre la base (recargo/descuento).
- *   3. Complementos extra (override de precio por experiencia si existe).
- *   4. Porte y montaje según la zona del concello.
- *   5. Total = subtotal + ajuste + complementos + porte + montaje.
+ *   3. Complementos extra (override de precio por experiencia si existe). Los marcados
+ *      como `a_consultar` se listan aparte y NO suman.
+ *   4. Horas extra sobre la duración incluida en la experiencia.
+ *   5. Porte y montaje según la zona del concello.
+ *   6. Total = subtotal + ajuste + complementos + horas extra + porte + montaje.
  */
 class CalculadoraPrecioService
 {
     /**
+     * Tope de horas extra admitidas.
+     *
+     * // DECISIÓN: el configurador ya limita el stepper, pero el motor vuelve a acotar
+     * porque las propiedades públicas de Livewire son manipulables desde el cliente.
+     */
+    public const MAX_HORAS_EXTRA = 12;
+
+    /**
      * @param  array<int|string, int>  $complementos  Mapa [complemento_id => cantidad] de complementos EXTRA.
      *                                                Si hay pack, sus complementos incluidos NO van aquí
      *                                                (ya están en el precio cerrado); solo los extras.
+     * @param  int  $horasExtra  Horas adicionales sobre las incluidas en la experiencia.
      */
     public function calcular(
         Experiencia $experiencia,
@@ -36,12 +48,14 @@ class CalculadoraPrecioService
         array $complementos = [],
         CarbonInterface|string|null $fechaEvento = null,
         ?string $concello = null,
+        int $horasExtra = 0,
     ): DesglosePrecio {
         $fecha = $this->normalizarFecha($fechaEvento);
 
-        // 1. Base
+        // 1. Base (con el suplemento de la máquina elegida si es un pack de base intercambiable)
+        $suplemento = $pack?->suplementoPara($experiencia->id) ?? 0.0;
         $base = $pack !== null
-            ? (float) $pack->precio
+            ? (float) $pack->precio + $suplemento
             : (float) $experiencia->precio_base;
         $subtotal = round($base, 2);
 
@@ -49,16 +63,19 @@ class CalculadoraPrecioService
         $temporada = $fecha !== null ? $this->temporadaPara($fecha) : null;
         $ajuste = $this->calcularAjuste($base, $temporada);
 
-        // 3. Complementos extra
-        [$totalComplementos, $lineas] = $this->calcularComplementos($experiencia, $complementos);
+        // 3. Complementos extra (los de precio variable salen aparte, sin sumar)
+        [$totalComplementos, $lineas, $lineasAConsultar] = $this->calcularComplementos($experiencia, $complementos);
 
-        // 4. Porte y montaje
+        // 4. Horas extra
+        [$horasExtra, $importeHorasExtra] = $this->calcularHorasExtra($experiencia, $horasExtra);
+
+        // 5. Porte y montaje
         $zona = $concello !== null ? $this->zonaPara($concello) : null;
         $porte = $zona !== null ? round((float) $zona->precio_porte, 2) : 0.0;
         $montaje = $zona !== null ? round((float) $zona->precio_montaje, 2) : 0.0;
 
-        // 5. Total
-        $total = round($subtotal + $ajuste + $totalComplementos + $porte + $montaje, 2);
+        // 6. Total
+        $total = round($subtotal + $ajuste + $totalComplementos + $importeHorasExtra + $porte + $montaje, 2);
 
         return new DesglosePrecio(
             subtotal: $subtotal,
@@ -72,7 +89,28 @@ class CalculadoraPrecioService
             temporadaNombre: $temporada?->nombre,
             zonaNombre: $zona?->nombre,
             lineasComplementos: $lineas,
+            horasExtra: $horasExtra,
+            importeHorasExtra: $importeHorasExtra,
+            lineasAConsultar: $lineasAConsultar,
+            suplementoBase: $suplemento,
         );
+    }
+
+    /**
+     * Horas extra efectivas y su importe. Si la experiencia no tiene precio por hora
+     * extra, no se cobran ni se cuentan (aunque lleguen en la petición).
+     *
+     * @return array{0: int, 1: float}
+     */
+    private function calcularHorasExtra(Experiencia $experiencia, int $horasExtra): array
+    {
+        if (! $experiencia->admiteHorasExtra()) {
+            return [0, 0.0];
+        }
+
+        $horas = max(0, min($horasExtra, self::MAX_HORAS_EXTRA));
+
+        return [$horas, round((float) $experiencia->precio_hora_extra * $horas, 2)];
     }
 
     /**
@@ -116,12 +154,16 @@ class CalculadoraPrecioService
 
     /**
      * @param  array<int|string, int>  $complementos
-     * @return array{0: float, 1: array<int, array{complemento_id:int, nombre:string, cantidad:int, precio_unitario:float, subtotal:float}>}
+     * @return array{
+     *     0: float,
+     *     1: array<int, array{complemento_id:int, nombre:string, cantidad:int, precio_unitario:float, subtotal:float}>,
+     *     2: array<int, array{complemento_id:int, nombre:string, cantidad:int}>
+     * }
      */
     private function calcularComplementos(Experiencia $experiencia, array $complementos): array
     {
         if ($complementos === []) {
-            return [0.0, []];
+            return [0.0, [], []];
         }
 
         $experiencia->loadMissing('complementos');
@@ -129,6 +171,7 @@ class CalculadoraPrecioService
 
         $total = 0.0;
         $lineas = [];
+        $aConsultar = [];
 
         foreach ($complementos as $complementoId => $cantidad) {
             $complementoId = (int) $complementoId;
@@ -150,6 +193,17 @@ class CalculadoraPrecioService
             // Cantidad acotada al máximo permitido por el pivote.
             $cantidad = min($cantidad, max(1, (int) $ofrecido->pivot->cantidad_maxima));
 
+            // Precio variable: se registra la petición pero no entra en el total.
+            if ($ofrecido->a_consultar) {
+                $aConsultar[] = [
+                    'complemento_id' => $ofrecido->id,
+                    'nombre' => $ofrecido->nombre,
+                    'cantidad' => $cantidad,
+                ];
+
+                continue;
+            }
+
             // precio_override de la experiencia si existe; si no, precio del complemento.
             $override = $ofrecido->pivot->precio_override;
             $precioUnitario = (float) ($override ?? $ofrecido->precio);
@@ -166,7 +220,7 @@ class CalculadoraPrecioService
             ];
         }
 
-        return [round($total, 2), $lineas];
+        return [round($total, 2), $lineas, $aConsultar];
     }
 
     public function zonaPara(string $concello): ?ZonaPorte

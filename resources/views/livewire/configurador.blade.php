@@ -118,10 +118,16 @@
                                         @endif
                                     </div>
                                     <div class="p-5">
+                                        @php $suplementoPack = $pack->suplementoPara($experienciaId); @endphp
                                         <div class="flex items-start justify-between gap-2">
                                             <h4 class="text-sm font-bold uppercase tracking-wide text-gray-900">{{ $pack->nombre }}</h4>
-                                            <span class="whitespace-nowrap text-xl font-black text-gray-900">{{ $eur($pack->precio) }}</span>
+                                            <span class="whitespace-nowrap text-xl font-black text-gray-900">{{ $eur($pack->precio + $suplementoPack) }}</span>
                                         </div>
+                                        @if ($suplementoPack > 0)
+                                            <p class="mt-0.5 text-right text-[11px] font-medium text-gray-400">
+                                                {{ $eur($pack->precio) }} + {{ $eur($suplementoPack) }} por {{ $this->experiencia->nombre }}
+                                            </p>
+                                        @endif
                                         <ul class="mt-3 space-y-1 text-sm text-gray-600">
                                             @foreach ($pack->complementos as $incluido)
                                                 <li class="flex items-center gap-1.5"><span class="text-marca-500">✓</span> {{ $incluido->pivot->cantidad }}× {{ $incluido->nombre }}</li>
@@ -136,6 +142,38 @@
                                 </div>
                             @endforeach
                         </div>
+                        {{-- Máquina base del pack: el cliente puede cambiarla pagando el suplemento --}}
+                        @if ($this->pack && $this->basesDelPack->count() > 1)
+                            <div class="mb-7 rounded-2xl border border-marca-100 bg-white p-5">
+                                <p class="text-sm font-bold uppercase tracking-wide text-gray-800">Máquina del pack</p>
+                                <p class="mt-1 text-sm text-gray-500">Cambia el fotomatón incluido en el {{ $this->pack->nombre }}.</p>
+                                <div class="mt-4 grid gap-2 sm:grid-cols-2">
+                                    @foreach ($this->basesDelPack as $base)
+                                        @php $esActual = $experienciaId === $base['experiencia']->id; @endphp
+                                        <button type="button" wire:click="cambiarBasePack({{ $base['experiencia']->id }})"
+                                            @class([
+                                                'flex items-center justify-between gap-3 rounded-xl border-2 px-4 py-3 text-left transition',
+                                                'border-marca-500 bg-marca-50' => $esActual,
+                                                'border-gray-100 bg-white hover:border-gray-200' => ! $esActual,
+                                            ])>
+                                            <span class="min-w-0">
+                                                <span class="block truncate text-sm font-semibold text-gray-900">{{ $base['experiencia']->nombre }}</span>
+                                                <span class="block text-xs text-gray-500">
+                                                    {{ $base['suplemento'] > 0 ? '+ ' . $eur($base['suplemento']) : 'Incluida en el pack' }}
+                                                </span>
+                                            </span>
+                                            <span @class([
+                                                'grid h-6 w-6 shrink-0 place-items-center rounded-full text-xs',
+                                                'bg-marca-600 text-white' => $esActual,
+                                                'bg-gray-100 text-gray-400' => ! $esActual,
+                                            ])>{{ $esActual ? '✓' : '+' }}</span>
+                                        </button>
+                                    @endforeach
+                                </div>
+                                <p class="mt-3 text-xs text-gray-400">Al cambiar de máquina se reinician la fecha y los complementos extra.</p>
+                            </div>
+                        @endif
+
                         <div class="mb-5 flex items-center gap-3 text-xs font-semibold uppercase tracking-wider text-gray-400">
                             <span class="h-px flex-1 bg-gray-200"></span>
                             {{ $packId ? 'Añade complementos extra' : 'O monta el tuyo' }}
@@ -143,65 +181,58 @@
                         </div>
                     @endif
 
+                    {{-- Horas extra (solo si el admin ha puesto precio por hora en la experiencia) --}}
+                    @if ($this->experiencia->admiteHorasExtra())
+                        <div class="mb-7 flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-marca-100 bg-marca-50/50 p-5">
+                            <div>
+                                <p class="text-sm font-bold uppercase tracking-wide text-gray-800">¿Quieres más horas?</p>
+                                <p class="mt-1 text-sm text-gray-600">
+                                    Incluye {{ $this->experiencia->duracion_horas }} h de servicio.
+                                    Cada hora extra: <span class="font-semibold text-marca-700">{{ $eur($this->experiencia->precio_hora_extra) }}</span>
+                                </p>
+                            </div>
+                            <div class="flex items-center gap-3">
+                                <button type="button" wire:click="bajarHoraExtra" @disabled($horasExtra <= 0)
+                                    class="grid h-10 w-10 place-items-center rounded-full border border-gray-200 bg-white text-lg font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-40">−</button>
+                                <div class="w-24 text-center">
+                                    <p class="text-2xl font-black text-gray-900">{{ $horasExtra }}</p>
+                                    <p class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">horas extra</p>
+                                </div>
+                                <button type="button" wire:click="subirHoraExtra" @disabled($horasExtra >= \App\Services\CalculadoraPrecioService::MAX_HORAS_EXTRA)
+                                    class="grid h-10 w-10 place-items-center rounded-full border border-gray-200 bg-white text-lg font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-40">+</button>
+                            </div>
+                        </div>
+                    @endif
+
                     {{-- Complementos por categoría (paneles plegables) --}}
-                    @foreach ($this->complementosPorCategoria as $categoria => $complementos)
+                    @foreach ($this->complementosAgrupados as $categoria => $grupos)
                         <div x-data="{ open: true }" class="mb-4 overflow-hidden rounded-2xl border border-gray-100 bg-white">
                             <button type="button" @click="open = !open" class="flex w-full items-center justify-between px-5 py-3 text-left">
                                 <span class="text-sm font-bold uppercase tracking-wider text-gray-700">{{ $categoria }}</span>
                                 <span class="text-xs font-semibold uppercase tracking-wide text-marca-600" x-text="open ? 'Ver menos' : 'Ver más'"></span>
                             </button>
-                            <div x-show="open" class="grid gap-3 border-t border-gray-100 p-4 sm:grid-cols-2 lg:grid-cols-3">
-                                @foreach ($complementos as $complemento)
-                                    @php
-                                        $incluidoEnPack = in_array($complemento->id, $this->complementosIncluidosPack, true);
-                                        $precioEfectivo = $complemento->pivot->precio_override ?? $complemento->precio;
-                                        $estaSeleccionado = array_key_exists($complemento->id, $this->complementos);
-                                        $obligatorio = (bool) $complemento->pivot->obligatorio;
-                                        $maxima = (int) $complemento->pivot->cantidad_maxima;
-                                        $bloqueado = $incluidoEnPack || $obligatorio;
-                                    @endphp
-                                    <div @class([
-                                        'relative flex flex-col overflow-hidden rounded-2xl border-2 transition',
-                                        'border-marca-500 ring-1 ring-marca-200' => $estaSeleccionado && ! $incluidoEnPack,
-                                        'border-marca-200 bg-marca-50/40' => $incluidoEnPack,
-                                        'border-gray-100 bg-white' => ! $estaSeleccionado && ! $incluidoEnPack,
-                                    ])>
-                                        <div class="flex h-24 items-center justify-center overflow-hidden bg-gradient-to-br from-gray-50 to-marca-50">
-                                            @if ($img($complemento))
-                                                <img src="{{ $img($complemento) }}" alt="{{ $complemento->nombre }}" class="h-full w-full object-cover">
-                                            @else
-                                                <span class="text-2xl text-marca-300">✦</span>
-                                            @endif
+                            <div x-show="open" class="space-y-4 border-t border-gray-100 p-4">
+                                @foreach ($grupos as $nombreGrupo => $complementos)
+                                    @if ($nombreGrupo === '')
+                                        {{-- Selección libre --}}
+                                        <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                            @foreach ($complementos as $complemento)
+                                                @include('livewire.partials.complemento-card', ['complemento' => $complemento, 'esGrupo' => false])
+                                            @endforeach
                                         </div>
-                                        <div class="flex flex-1 flex-col p-3">
-                                            <p class="text-xs font-bold uppercase tracking-wide text-gray-800">{{ $complemento->nombre }}</p>
-                                            <p class="mt-1 text-sm font-semibold text-marca-700">{{ $incluidoEnPack ? 'Incluido' : '+ ' . $eur($precioEfectivo) }}</p>
-
-                                            <div class="mt-auto pt-3">
-                                                @if ($incluidoEnPack)
-                                                    <span class="block rounded-full bg-marca-100 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-marca-700">En el pack ✓</span>
-                                                @elseif ($obligatorio)
-                                                    <span class="block rounded-full bg-marca-100 py-1.5 text-center text-[11px] font-semibold uppercase tracking-wide text-marca-700">Incluido ✓</span>
-                                                @elseif ($estaSeleccionado && $maxima > 1)
-                                                    <div class="flex items-center justify-center gap-2">
-                                                        <input type="number" min="1" max="{{ $maxima }}" value="{{ $this->complementos[$complemento->id] }}"
-                                                            wire:change="actualizarCantidad({{ $complemento->id }}, $event.target.value)"
-                                                            class="w-14 rounded-lg border border-gray-200 px-2 py-1 text-center text-sm">
-                                                        <button type="button" wire:click="alternarComplemento({{ $complemento->id }})" class="text-xs font-semibold text-acento-500 hover:text-acento-600">Quitar</button>
-                                                    </div>
-                                                @else
-                                                    <button type="button" wire:click="alternarComplemento({{ $complemento->id }})"
-                                                        @class([
-                                                            'block w-full rounded-full py-1.5 text-[11px] font-semibold uppercase tracking-wide transition',
-                                                            'bg-marca-600 text-white hover:bg-marca-700' => $estaSeleccionado,
-                                                            'bg-gray-100 text-gray-600 hover:bg-gray-200' => ! $estaSeleccionado,
-                                                        ])>
-                                                        {{ $estaSeleccionado ? 'Quitar ✓' : 'Añadir +' }}
-                                                    </button>
-                                                @endif
+                                    @else
+                                        {{-- Grupo "elige uno": las opciones se excluyen entre sí --}}
+                                        <div class="rounded-2xl border border-dashed border-marca-200 bg-marca-50/30 p-3">
+                                            <p class="mb-3 text-[11px] font-bold uppercase tracking-wider text-marca-700">
+                                                Elige una opción · {{ Str::headline($nombreGrupo) }}
+                                            </p>
+                                            <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                                                @foreach ($complementos as $complemento)
+                                                    @include('livewire.partials.complemento-card', ['complemento' => $complemento, 'esGrupo' => true])
+                                                @endforeach
                                             </div>
                                         </div>
-                                    </div>
+                                    @endif
                                 @endforeach
                             </div>
                         </div>
@@ -267,8 +298,12 @@
                             <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Concello del evento</label>
                             <select wire:model.live="concello" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:border-marca-500 focus:ring-marca-500">
                                 <option value="">— Selecciona el concello —</option>
-                                @foreach ($this->concellos as $c)
-                                    <option value="{{ $c }}">{{ $c }}</option>
+                                @foreach ($this->concellos as $provincia => $concellosProvincia)
+                                    <optgroup label="{{ $provincia }}">
+                                        @foreach ($concellosProvincia as $c)
+                                            <option value="{{ $c }}">{{ $c }}</option>
+                                        @endforeach
+                                    </optgroup>
                                 @endforeach
                             </select>
                             <p class="mt-1 text-xs text-gray-400">El porte y el montaje se calculan según el concello.</p>
@@ -365,6 +400,16 @@
                             </div>
                         </div>
 
+                        @if ($desglose->horasExtra > 0)
+                            <div class="border-t border-gray-100 pt-3">
+                                <p class="text-xs uppercase tracking-wide text-gray-400">Duración</p>
+                                <p class="text-sm text-gray-600">
+                                    {{ $this->experiencia->duracion_horas }} h incluidas + {{ $desglose->horasExtra }} h extra
+                                    ({{ $eur($desglose->importeHorasExtra) }})
+                                </p>
+                            </div>
+                        @endif
+
                         @if (! empty($desglose->lineasComplementos))
                             <div class="border-t border-gray-100 pt-3">
                                 <p class="mb-1 text-xs uppercase tracking-wide text-gray-400">Complementos</p>
@@ -373,6 +418,21 @@
                                         <li class="flex justify-between"><span>{{ $linea['cantidad'] }}× {{ $linea['nombre'] }}</span><span>{{ $eur($linea['subtotal']) }}</span></li>
                                     @endforeach
                                 </ul>
+                            </div>
+                        @endif
+
+                        @if ($desglose->tieneLineasAConsultar())
+                            <div class="border-t border-gray-100 pt-3">
+                                <p class="mb-1 text-xs uppercase tracking-wide text-gray-400">A presupuestar</p>
+                                <ul class="space-y-1 text-sm text-gray-600">
+                                    @foreach ($desglose->lineasAConsultar as $linea)
+                                        <li class="flex justify-between">
+                                            <span>{{ $linea['cantidad'] }}× {{ $linea['nombre'] }}</span>
+                                            <span class="text-xs font-semibold uppercase tracking-wide text-acento-600">A consultar</span>
+                                        </li>
+                                    @endforeach
+                                </ul>
+                                <p class="mt-2 text-xs text-gray-400">No suman al total: te llamamos para concretarlos.</p>
                             </div>
                         @endif
 
@@ -437,10 +497,22 @@
                                             <dd class="font-semibold {{ $desglose->ajusteTemporada < 0 ? 'text-marca-600' : 'text-gray-800' }}">{{ ($desglose->ajusteTemporada > 0 ? '+' : '') . $eur($desglose->ajusteTemporada) }}</dd>
                                         </div>
                                     @endif
+                                    @if ($desglose->horasExtra > 0)
+                                        <div class="flex justify-between">
+                                            <dt class="text-gray-500">{{ $desglose->horasExtra }}× hora extra</dt>
+                                            <dd class="font-semibold text-gray-800">{{ $eur($desglose->importeHorasExtra) }}</dd>
+                                        </div>
+                                    @endif
                                     @foreach ($desglose->lineasComplementos as $linea)
                                         <div class="flex justify-between text-gray-600">
                                             <dt class="truncate pr-2">{{ $linea['cantidad'] }}× {{ $linea['nombre'] }}</dt>
                                             <dd class="whitespace-nowrap">{{ $eur($linea['subtotal']) }}</dd>
+                                        </div>
+                                    @endforeach
+                                    @foreach ($desglose->lineasAConsultar as $linea)
+                                        <div class="flex justify-between text-gray-600">
+                                            <dt class="truncate pr-2">{{ $linea['cantidad'] }}× {{ $linea['nombre'] }}</dt>
+                                            <dd class="whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-acento-600">A consultar</dd>
                                         </div>
                                     @endforeach
                                     @if ($desglose->porte > 0 || $desglose->montaje > 0)
@@ -459,6 +531,11 @@
                                     <span class="text-xs font-semibold uppercase tracking-wide text-gray-500">Total</span>
                                     <span class="text-3xl font-black text-marca-700">{{ $eur($desglose->total) }}</span>
                                 </div>
+                                @if ($desglose->tieneLineasAConsultar())
+                                    <p class="mt-2 rounded-lg bg-acento-100/70 px-3 py-2 text-xs text-acento-700">
+                                        Los elementos marcados «A consultar» no están incluidos en el total: te los presupuestamos aparte.
+                                    </p>
+                                @endif
                                 <p class="mt-2 text-xs text-gray-400">Precio orientativo. Se confirma con la disponibilidad.</p>
                             @endif
                         @else

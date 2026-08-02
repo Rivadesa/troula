@@ -178,6 +178,10 @@ class ReservaResource extends Resource
                 Infolists\Components\TextEntry::make('pack.nombre')->label('Pack')->placeholder('— a la carta —'),
                 Infolists\Components\TextEntry::make('fecha_evento')->date('d/m/Y'),
                 Infolists\Components\TextEntry::make('turno')->badge(),
+                Infolists\Components\TextEntry::make('horas_extra')
+                    ->label('Horas extra')
+                    ->suffix(' h')
+                    ->placeholder('—'),
                 Infolists\Components\TextEntry::make('concello'),
                 Infolists\Components\TextEntry::make('zona.nombre')->label('Zona de porte')->placeholder('—'),
                 Infolists\Components\TextEntry::make('lugar_evento')->label('Lugar')->placeholder('—'),
@@ -190,7 +194,12 @@ class ReservaResource extends Resource
                     ->schema([
                         Infolists\Components\TextEntry::make('nombre'),
                         Infolists\Components\TextEntry::make('pivot.cantidad')->label('Cantidad'),
-                        Infolists\Components\TextEntry::make('pivot.precio_congelado')->label('Precio congelado')->money('EUR'),
+                        Infolists\Components\TextEntry::make('pivot.precio_congelado')
+                            ->label('Precio congelado')
+                            // Los complementos de precio variable se guardan a 0: hay que presupuestarlos.
+                            ->formatStateUsing(fn ($state, $record): string => $record->a_consultar
+                                ? 'A consultar'
+                                : '€'.number_format((float) $state, 2, ',', '.')),
                     ])->columns(3),
             ])->visible(fn (Reserva $record): bool => $record->complementos->isNotEmpty()),
 

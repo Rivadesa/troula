@@ -22,6 +22,8 @@ class ExperienciaFactory extends Factory
             'slug' => Str::slug($nombre).'-'.Str::lower(Str::random(4)),
             'descripcion' => fake()->paragraph(),
             'precio_base' => fake()->randomFloat(2, 200, 600),
+            'duracion_horas' => 3,
+            'precio_hora_extra' => null,
             'imagen' => null,
             'unidades' => 1,
             'permite_turnos' => false,
@@ -43,5 +45,13 @@ class ExperienciaFactory extends Factory
     public function inactiva(): static
     {
         return $this->state(fn () => ['activo' => false]);
+    }
+
+    public function conHorasExtra(float $precioHora, int $duracionHoras = 3): static
+    {
+        return $this->state(fn () => [
+            'duracion_horas' => $duracionHoras,
+            'precio_hora_extra' => $precioHora,
+        ]);
     }
 }

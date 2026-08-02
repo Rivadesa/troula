@@ -24,6 +24,7 @@ class ComplementoFactory extends Factory
             'slug' => Str::slug($nombre).'-'.Str::lower(Str::random(4)),
             'descripcion' => fake()->optional()->sentence(),
             'precio' => fake()->randomFloat(2, 10, 150),
+            'a_consultar' => false,
             'imagen' => null,
             'activo' => true,
         ];
@@ -32,5 +33,13 @@ class ComplementoFactory extends Factory
     public function inactivo(): static
     {
         return $this->state(fn () => ['activo' => false]);
+    }
+
+    /**
+     * Complemento de precio variable: se muestra pero no suma al total.
+     */
+    public function aConsultar(): static
+    {
+        return $this->state(fn () => ['a_consultar' => true, 'precio' => 0]);
     }
 }

@@ -55,7 +55,22 @@ class ExperienciaResource extends Resource
                     ->numeric()
                     ->prefix('€')
                     ->required()
-                    ->default(0),
+                    ->default(0)
+                    ->helperText('Precio de la duración incluida (por defecto, 3 h).'),
+                Forms\Components\TextInput::make('duracion_horas')
+                    ->label('Horas incluidas')
+                    ->numeric()
+                    ->minValue(1)
+                    ->default(3)
+                    ->required()
+                    ->suffix('h')
+                    ->helperText('Horas de servicio que cubre el precio base.'),
+                Forms\Components\TextInput::make('precio_hora_extra')
+                    ->label('Precio hora extra')
+                    ->numeric()
+                    ->prefix('€')
+                    ->minValue(0)
+                    ->helperText('Vacío = esta experiencia no ofrece horas extra en el configurador.'),
                 Forms\Components\FileUpload::make('imagen')
                     ->image()
                     ->directory('experiencias')
@@ -92,6 +107,12 @@ class ExperienciaResource extends Resource
                 Tables\Columns\ImageColumn::make('imagen')->label('')->square(),
                 Tables\Columns\TextColumn::make('nombre')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('precio_base')->money('EUR')->sortable(),
+                Tables\Columns\TextColumn::make('duracion_horas')->label('Horas')->suffix(' h')->sortable(),
+                Tables\Columns\TextColumn::make('precio_hora_extra')
+                    ->label('Hora extra')
+                    ->money('EUR')
+                    ->placeholder('—')
+                    ->toggleable(),
                 Tables\Columns\TextColumn::make('unidades')->badge(),
                 Tables\Columns\IconColumn::make('permite_turnos')->boolean()->label('Turnos'),
                 Tables\Columns\TextColumn::make('complementos_count')->counts('complementos')->label('Complementos')->badge(),

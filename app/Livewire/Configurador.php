@@ -5,6 +5,7 @@ namespace App\Livewire;
 use App\Enums\Turno;
 use App\Exceptions\ExperienciaNoDisponibleException;
 use App\Mail\NuevaReservaMail;
+use App\Models\Complemento;
 use App\Models\ConcelloZona;
 use App\Models\Experiencia;
 use App\Models\Pack;
@@ -42,6 +43,9 @@ class Configurador extends Component
 
     /** @var array<int, int> Mapa [complemento_id => cantidad] de complementos EXTRA seleccionados. */
     public array $complementos = [];
+
+    /** Horas adicionales sobre las que incluye la experiencia. */
+    public int $horasExtra = 0;
 
     public ?string $fecha = null;
 
@@ -92,6 +96,10 @@ class Configurador extends Component
             ->find($this->experienciaId);
     }
 
+    /**
+     * Packs que admiten la máquina elegida: los que la tienen como base por defecto
+     * y los que la ofrecen como base alternativa (con suplemento).
+     */
     #[Computed]
     public function packs(): Collection
     {
@@ -99,9 +107,14 @@ class Configurador extends Component
             return collect();
         }
 
-        return $this->experiencia->packs()
+        $experienciaId = $this->experiencia->id;
+
+        return Pack::query()
             ->where('activo', true)
-            ->with('complementos')
+            ->where(fn ($q) => $q
+                ->where('experiencia_id', $experienciaId)
+                ->orWhereHas('basesDisponibles', fn ($b) => $b->where('experiencias.id', $experienciaId)))
+            ->with(['complementos', 'basesDisponibles', 'experiencia'])
             ->get();
     }
 
@@ -112,7 +125,50 @@ class Configurador extends Component
             return null;
         }
 
-        return $this->packs->firstWhere('id', $this->packId);
+        // Se busca por id (no dentro de `packs`) porque al cambiar la máquina base
+        // el pack sigue siendo el mismo aunque cambie la experiencia seleccionada.
+        $pack = Pack::query()
+            ->where('activo', true)
+            ->with(['complementos', 'basesDisponibles', 'experiencia'])
+            ->find($this->packId);
+
+        if ($pack === null || ! $pack->admiteBase($this->experienciaId)) {
+            return null;
+        }
+
+        return $pack;
+    }
+
+    /**
+     * Máquinas base que admite el pack elegido: la de serie (sin suplemento) más
+     * las alternativas del pivote. Cada entrada lleva su suplemento ya resuelto.
+     *
+     * @return Collection<int, array{experiencia: Experiencia, suplemento: float}>
+     */
+    #[Computed]
+    public function basesDelPack(): Collection
+    {
+        $pack = $this->pack;
+
+        if ($pack === null) {
+            return collect();
+        }
+
+        $bases = collect();
+
+        if ($pack->experiencia !== null) {
+            $bases->push(['experiencia' => $pack->experiencia, 'suplemento' => 0.0]);
+        }
+
+        foreach ($pack->basesDisponibles as $base) {
+            if ($base->id === $pack->experiencia_id || ! $base->activo) {
+                continue;
+            }
+
+            $bases->push(['experiencia' => $base, 'suplemento' => round((float) $base->pivot->suplemento, 2)]);
+        }
+
+        return $bases;
     }
 
     /**
@@ -141,10 +197,26 @@ class Configurador extends Component
         return $this->pack?->complementos->pluck('id')->all() ?? [];
     }
 
+    /**
+     * Concellos agrupados por provincia para el desplegable (313 en toda Galicia).
+     *
+     * @return Collection<string, Collection<int, string>>
+     */
     #[Computed]
     public function concellos(): Collection
     {
-        return ConcelloZona::query()->orderBy('concello')->pluck('concello');
+        $porProvincia = ConcelloZona::query()
+            ->orderBy('concello')
+            ->get(['concello', 'provincia'])
+            ->groupBy(fn (ConcelloZona $fila): string => $fila->provincia ?: 'Outros')
+            ->map(fn (Collection $filas) => $filas->pluck('concello'));
+
+        // Provincias en su orden natural; las que no estén en el catálogo van al final.
+        return $porProvincia->sortBy(function (Collection $concellos, string $provincia): int {
+            $posicion = array_search($provincia, ConcelloZona::PROVINCIAS, true);
+
+            return $posicion === false ? PHP_INT_MAX : $posicion;
+        });
     }
 
     /**
@@ -194,6 +266,24 @@ class Configurador extends Component
             complementos: $this->complementosExtras(),
             fechaEvento: $this->fecha,
             concello: $this->concello,
+            horasExtra: $this->horasExtra,
+        );
+    }
+
+    /**
+     * Complementos de la experiencia agrupados por categoría y, dentro de cada una,
+     * separados en grupos "elige uno" (clave = nombre del grupo) y selección libre
+     * (clave = cadena vacía).
+     *
+     * @return Collection<string, Collection<string, Collection<int, Complemento>>>
+     */
+    #[Computed]
+    public function complementosAgrupados(): Collection
+    {
+        return $this->complementosPorCategoria->map(
+            fn (Collection $complementos) => $complementos->groupBy(
+                fn (Complemento $complemento): string => (string) ($complemento->pivot->grupo ?? ''),
+            ),
         );
     }
 
@@ -208,9 +298,33 @@ class Configurador extends Component
             $this->packId = null;
             $this->fecha = null;
             $this->turno = Turno::Completo->value;
+            $this->horasExtra = 0;
             unset($this->experiencia);
             $this->preseleccionarObligatorios();
         }
+    }
+
+    /**
+     * Cambia la máquina base del pack elegido conservando el pack. La fecha se
+     * reinicia porque la disponibilidad se calcula por experiencia (cada máquina
+     * tiene sus propias unidades).
+     */
+    public function cambiarBasePack(int $experienciaId): void
+    {
+        $pack = $this->pack;
+
+        if ($pack === null || ! $pack->admiteBase($experienciaId) || $this->experienciaId === $experienciaId) {
+            return;
+        }
+
+        $this->experienciaId = $experienciaId;
+        $this->fecha = null;
+        $this->turno = Turno::Completo->value;
+        $this->horasExtra = 0;
+        // Los extras se reinician: la máquina nueva puede ofrecer otros complementos.
+        $this->complementos = [];
+
+        unset($this->experiencia, $this->pack, $this->basesDelPack);
     }
 
     public function elegirPack(int $packId): void
@@ -218,21 +332,53 @@ class Configurador extends Component
         $this->packId = $packId;
         // En modo pack, los complementos del pack ya van incluidos; los extras parten de cero.
         $this->complementos = [];
+
+        unset($this->pack, $this->basesDelPack);
     }
 
     public function quitarPack(): void
     {
         $this->packId = null;
         $this->preseleccionarObligatorios();
+
+        unset($this->pack, $this->basesDelPack);
     }
 
     public function alternarComplemento(int $complementoId): void
     {
         if (array_key_exists($complementoId, $this->complementos)) {
             unset($this->complementos[$complementoId]);
-        } else {
-            $this->complementos[$complementoId] = 1;
+
+            return;
         }
+
+        // Si pertenece a un grupo "elige uno", sustituye a sus hermanos.
+        foreach ($this->hermanosDeGrupo($complementoId) as $hermanoId) {
+            unset($this->complementos[$hermanoId]);
+        }
+
+        $this->complementos[$complementoId] = 1;
+    }
+
+    public function subirHoraExtra(): void
+    {
+        $this->actualizarHorasExtra($this->horasExtra + 1);
+    }
+
+    public function bajarHoraExtra(): void
+    {
+        $this->actualizarHorasExtra($this->horasExtra - 1);
+    }
+
+    public function actualizarHorasExtra(int $horas): void
+    {
+        if ($this->experiencia === null || ! $this->experiencia->admiteHorasExtra()) {
+            $this->horasExtra = 0;
+
+            return;
+        }
+
+        $this->horasExtra = max(0, min($horas, CalculadoraPrecioService::MAX_HORAS_EXTRA));
     }
 
     public function actualizarCantidad(int $complementoId, int $cantidad): void
@@ -304,6 +450,7 @@ class Configurador extends Component
                 'pack_id' => $this->packId,
                 'fecha_evento' => $this->fecha,
                 'turno' => $this->turno,
+                'horas_extra' => $this->horasExtra,
                 'concello' => $this->concello,
                 'complementos' => $this->complementosExtras(),
                 'cliente_nombre' => $this->clienteNombre,
@@ -364,6 +511,26 @@ class Configurador extends Component
         $complemento = $this->experiencia?->complementos->firstWhere('id', $complementoId);
 
         return (bool) ($complemento?->pivot->obligatorio ?? false);
+    }
+
+    /**
+     * IDs de los demás complementos del mismo grupo "elige uno".
+     *
+     * @return array<int, int>
+     */
+    private function hermanosDeGrupo(int $complementoId): array
+    {
+        $complemento = $this->experiencia?->complementos->firstWhere('id', $complementoId);
+        $grupo = $complemento?->pivot->grupo;
+
+        if (blank($grupo)) {
+            return [];
+        }
+
+        return $this->experiencia->complementos
+            ->filter(fn (Complemento $otro): bool => $otro->pivot->grupo === $grupo && $otro->id !== $complementoId)
+            ->pluck('id')
+            ->all();
     }
 
     private function cantidadMaxima(int $complementoId): int

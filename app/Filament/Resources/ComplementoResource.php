@@ -7,6 +7,7 @@ use App\Filament\Resources\ComplementoResource\Pages;
 use App\Models\Complemento;
 use Filament\Forms;
 use Filament\Forms\Form;
+use Filament\Forms\Get;
 use Filament\Forms\Set;
 use Filament\Resources\Resource;
 use Filament\Tables;
@@ -54,11 +55,18 @@ class ComplementoResource extends Resource
                     ->label('Descripción')
                     ->rows(3)
                     ->columnSpanFull(),
+                Forms\Components\Toggle::make('a_consultar')
+                    ->label('Precio a consultar')
+                    ->live()
+                    ->helperText('Para precios variables (mesas dulces, puestos de comida, detalles por tramos): se muestra en el configurador pero NO suma al total.')
+                    ->columnSpanFull(),
                 Forms\Components\TextInput::make('precio')
                     ->numeric()
                     ->prefix('€')
-                    ->required()
                     ->default(0)
+                    ->required(fn (Get $get): bool => ! $get('a_consultar'))
+                    ->disabled(fn (Get $get): bool => (bool) $get('a_consultar'))
+                    ->dehydrated()
                     ->helperText('Precio base; cada experiencia puede sobreescribirlo con un precio_override.'),
                 Forms\Components\FileUpload::make('imagen')
                     ->image()
@@ -79,13 +87,20 @@ class ComplementoResource extends Resource
                 Tables\Columns\ImageColumn::make('imagen')->label('')->circular(),
                 Tables\Columns\TextColumn::make('nombre')->searchable()->sortable(),
                 Tables\Columns\TextColumn::make('categoria.nombre')->label('Categoría')->badge()->sortable(),
-                Tables\Columns\TextColumn::make('precio')->money('EUR')->sortable(),
+                Tables\Columns\TextColumn::make('precio')
+                    ->sortable()
+                    // Los de precio variable no muestran importe: lo presupuesta el admin.
+                    ->formatStateUsing(fn ($state, Complemento $record): string => $record->a_consultar
+                        ? 'A consultar'
+                        : '€'.number_format((float) $state, 2, ',', '.')),
+                Tables\Columns\IconColumn::make('a_consultar')->label('A consultar')->boolean(),
                 Tables\Columns\IconColumn::make('activo')->boolean(),
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('categoria_id')
                     ->label('Categoría')
                     ->relationship('categoria', 'nombre'),
+                Tables\Filters\TernaryFilter::make('a_consultar')->label('Precio a consultar'),
                 Tables\Filters\TernaryFilter::make('activo'),
             ])
             ->actions([

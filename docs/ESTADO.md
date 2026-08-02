@@ -13,7 +13,14 @@ Documento de continuidad: dónde está el proyecto, qué está hecho, qué queda
 - [x] Configurador frontend (wizard de 5 pasos) con precio en vivo.
 - [x] Selección de experiencia en lista vertical; packs y complementos por categoría.
 - [x] Disponibilidad con turnos (mañana/tarde) + datepicker que la respeta.
-- [x] Motor de precios: base, temporada, packs, complementos con override, porte/montaje por zona.
+- [x] Motor de precios: base, temporada, packs, complementos con override, porte/montaje por zona,
+      **horas extra**, **complementos "a consultar"** (no suman) y **suplemento por máquina base de pack**.
+- [x] **Catálogo real de Retrátate Eventos** cargado por seeder (11 experiencias, 34 complementos, 9 packs).
+- [x] **Packs con base intercambiable**: cada pack admite varias máquinas con suplemento; el cliente
+      la cambia en el configurador y el precio se recalcula.
+- [x] **Grupos "elige uno"** en complementos (hora loca, glitter, letras, audiolibro, mesa dulce).
+- [x] **Los 313 concellos de Galicia** por provincia, con desplegable agrupado y reasignación
+      masiva de zona desde el panel.
 - [x] Reserva como *lead* + email de aviso al administrador.
 - [x] Panel Filament: catálogo (experiencias, categorías, complementos, packs), temporadas,
       zonas de porte, concellos.
@@ -35,6 +42,13 @@ Documento de continuidad: dónde está el proyecto, qué está hecho, qué queda
 - **Enums PHP** (`App\Enums\*`) en columnas `string`.
 - **Roles** con columna `users.rol` + trait `App\Filament\Concerns\SoloAdministradores`.
 - **Cliente** se crea/enlaza solo tras aceptar la LOPD (`ReservaService::registrarCliente`).
+- **Precios variables** (mesas dulces, puestos de comida, detalles por tramos): el admin marca
+  `complementos.a_consultar`; se muestran en el configurador, se guardan en la reserva con precio 0
+  y **no suman** al total (el presupuesto lo cierra el comercio).
+- **Base de pack**: la de serie va en `packs.experiencia_id` (sin suplemento); las alternativas en
+  el pivote `pack_experiencia.suplemento`.
+- **Horas extra**: solo se ofrecen si la experiencia tiene `precio_hora_extra`; el motor las acota a
+  `CalculadoraPrecioService::MAX_HORAS_EXTRA` (las propiedades Livewire son manipulables).
 - **Mail `log` + cola `sync`** en producción (de momento, sin SMTP ni cron).
 
 ## Mapa rápido del código

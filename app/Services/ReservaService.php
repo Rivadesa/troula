@@ -33,6 +33,7 @@ class ReservaService
      *     pack_id?:int|null,
      *     fecha_evento:string,
      *     turno?:Turno|string|null,
+     *     horas_extra?:int,
      *     concello:string,
      *     zona_id?:int|null,
      *     complementos?:array<int|string,int>,
@@ -58,8 +59,9 @@ class ReservaService
         }
 
         $pack = ! empty($datos['pack_id']) ? Pack::find($datos['pack_id']) : null;
-        // Descarta packs inválidos (inactivos o de otra experiencia): se trata como a la carta.
-        if ($pack !== null && (! $pack->activo || $pack->experiencia_id !== $experiencia->id)) {
+        // Descarta packs inválidos (inactivos, o cuya base no admite esta máquina):
+        // se trata como venta a la carta.
+        if ($pack !== null && (! $pack->activo || ! $pack->admiteBase($experiencia->id))) {
             $pack = null;
         }
 
@@ -72,6 +74,7 @@ class ReservaService
             complementos: $complementos,
             fechaEvento: $datos['fecha_evento'],
             concello: $datos['concello'],
+            horasExtra: (int) ($datos['horas_extra'] ?? 0),
         );
 
         $zona = $this->calculadora->zonaPara($datos['concello']);
@@ -112,6 +115,15 @@ class ReservaService
                     $reserva->complementos()->attach($linea['complemento_id'], [
                         'cantidad' => $linea['cantidad'],
                         'precio_congelado' => $linea['precio_unitario'],
+                    ]);
+                }
+
+                // Los complementos "a consultar" también se guardan (precio 0): no suman al
+                // total pero el administrador necesita verlos para presupuestarlos al cliente.
+                foreach ($desglose->lineasAConsultar as $linea) {
+                    $reserva->complementos()->attach($linea['complemento_id'], [
+                        'cantidad' => $linea['cantidad'],
+                        'precio_congelado' => 0,
                     ]);
                 }
 

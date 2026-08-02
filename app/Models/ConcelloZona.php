@@ -16,8 +16,12 @@ class ConcelloZona extends Model
 
     protected $fillable = [
         'concello',
+        'provincia',
         'zona_id',
     ];
+
+    /** Provincias gallegas, en el orden en que se muestran. */
+    public const PROVINCIAS = ['A Coruña', 'Lugo', 'Ourense', 'Pontevedra'];
 
     /**
      * @return BelongsTo<ZonaPorte, $this>

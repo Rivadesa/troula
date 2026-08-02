@@ -7,6 +7,7 @@ use Filament\Forms\Form;
 use Filament\Resources\RelationManagers\RelationManager;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Support\Facades\DB;
 
 /**
  * Gestor de la relación N:N central: qué complementos ofrece la experiencia y con
@@ -32,6 +33,11 @@ class ComplementosRelationManager extends RelationManager
                 ->numeric()
                 ->prefix('€')
                 ->helperText('Si se indica, sustituye al precio del complemento para esta experiencia.'),
+            Forms\Components\TextInput::make('grupo')
+                ->label('Grupo "elige uno"')
+                ->maxLength(255)
+                ->datalist(fn (): array => $this->gruposExistentes())
+                ->helperText('Los complementos con el mismo grupo se muestran como opciones excluyentes (p. ej. "estructura" u "hora-loca"). Vacío = selección libre.'),
             Forms\Components\Toggle::make('obligatorio')
                 ->helperText('Si entra de serie (preseleccionado en el configurador).'),
             Forms\Components\TextInput::make('cantidad_maxima')
@@ -55,6 +61,7 @@ class ComplementosRelationManager extends RelationManager
                 Tables\Columns\TextColumn::make('categoria.nombre')->label('Categoría')->badge(),
                 Tables\Columns\TextColumn::make('precio')->money('EUR')->label('Precio base'),
                 Tables\Columns\TextColumn::make('precio_override')->money('EUR')->label('Override')->placeholder('—'),
+                Tables\Columns\TextColumn::make('grupo')->label('Grupo')->badge()->placeholder('—'),
                 Tables\Columns\IconColumn::make('obligatorio')->boolean(),
                 Tables\Columns\TextColumn::make('cantidad_maxima')->label('Cant. máx.'),
                 Tables\Columns\TextColumn::make('orden'),
@@ -70,6 +77,10 @@ class ComplementosRelationManager extends RelationManager
                             ->label('Precio override')
                             ->numeric()
                             ->prefix('€'),
+                        Forms\Components\TextInput::make('grupo')
+                            ->label('Grupo "elige uno"')
+                            ->maxLength(255)
+                            ->datalist(fn (): array => $this->gruposExistentes()),
                         Forms\Components\Toggle::make('obligatorio'),
                         Forms\Components\TextInput::make('cantidad_maxima')
                             ->label('Cantidad máxima')
@@ -90,5 +101,22 @@ class ComplementosRelationManager extends RelationManager
                     Tables\Actions\DetachBulkAction::make(),
                 ]),
             ]);
+    }
+
+    /**
+     * Grupos ya usados en esta experiencia, para sugerirlos en el datalist y
+     * evitar erratas que romperían el "elige uno" del configurador.
+     *
+     * @return array<int, string>
+     */
+    private function gruposExistentes(): array
+    {
+        return DB::table('experiencia_complemento')
+            ->where('experiencia_id', $this->getOwnerRecord()->getKey())
+            ->whereNotNull('grupo')
+            ->distinct()
+            ->orderBy('grupo')
+            ->pluck('grupo')
+            ->all();
     }
 }

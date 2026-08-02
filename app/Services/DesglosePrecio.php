@@ -17,6 +17,7 @@ final class DesglosePrecio implements Arrayable
 {
     /**
      * @param  array<int, array{complemento_id:int, nombre:string, cantidad:int, precio_unitario:float, subtotal:float}>  $lineasComplementos
+     * @param  array<int, array{complemento_id:int, nombre:string, cantidad:int}>  $lineasAConsultar  Complementos de precio variable: se muestran pero NO suman.
      */
     public function __construct(
         public readonly float $subtotal,
@@ -30,12 +31,25 @@ final class DesglosePrecio implements Arrayable
         public readonly ?string $temporadaNombre = null,
         public readonly ?string $zonaNombre = null,
         public readonly array $lineasComplementos = [],
+        public readonly int $horasExtra = 0,
+        public readonly float $importeHorasExtra = 0.0,
+        public readonly array $lineasAConsultar = [],
+        public readonly float $suplementoBase = 0.0,
     ) {}
+
+    /**
+     * ¿Hay alguna línea pendiente de presupuestar? El configurador lo usa para
+     * avisar de que el total mostrado no es definitivo.
+     */
+    public function tieneLineasAConsultar(): bool
+    {
+        return $this->lineasAConsultar !== [];
+    }
 
     /**
      * Cifras congeladas para persistir en la tabla `reservas`.
      *
-     * @return array{subtotal:float, ajuste_temporada:float, total_complementos:float, porte:float, montaje:float, total:float}
+     * @return array{subtotal:float, ajuste_temporada:float, total_complementos:float, porte:float, montaje:float, total:float, horas_extra:int}
      */
     public function paraReserva(): array
     {
@@ -46,6 +60,7 @@ final class DesglosePrecio implements Arrayable
             'porte' => $this->porte,
             'montaje' => $this->montaje,
             'total' => $this->total,
+            'horas_extra' => $this->horasExtra,
         ];
     }
 
@@ -61,6 +76,9 @@ final class DesglosePrecio implements Arrayable
             'temporada_nombre' => $this->temporadaNombre,
             'zona_nombre' => $this->zonaNombre,
             'lineas_complementos' => $this->lineasComplementos,
+            'importe_horas_extra' => $this->importeHorasExtra,
+            'lineas_a_consultar' => $this->lineasAConsultar,
+            'suplemento_base' => $this->suplementoBase,
         ];
     }
 }

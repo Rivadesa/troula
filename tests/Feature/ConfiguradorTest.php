@@ -3,8 +3,11 @@
 use App\Livewire\Configurador;
 use App\Mail\NuevaReservaMail;
 use App\Models\Cliente;
+use App\Models\Complemento;
 use App\Models\Experiencia;
+use App\Models\Pack;
 use App\Models\Reserva;
+use App\Services\CalculadoraPrecioService;
 use Illuminate\Support\Facades\Mail;
 use Livewire\Livewire;
 
@@ -17,33 +20,42 @@ it('renderiza la home del configurador con el layout público', function () {
     $this->get('/')
         ->assertOk()
         ->assertSee('Elige tu experiencia')
-        ->assertSee('Troula Eventos');
+        ->assertSee('Retrátate Eventos', escape: false);
 });
 
 it('preselecciona los complementos obligatorios al elegir experiencia', function () {
-    $fotomaton = Experiencia::where('slug', 'fotomaton-clasico')->firstOrFail();
+    // El Fotomatón con Estructura y Neón los lleva incluidos (obligatorios, precio 0).
+    $estructura = Experiencia::where('slug', 'fotomaton-estructura-neon')->firstOrFail();
 
     Livewire::test(Configurador::class)
-        ->call('seleccionarExperiencia', $fotomaton->id)
-        ->assertSet('experienciaId', $fotomaton->id)
-        ->assertCount('complementos', 1); // "impresiones-ilimitadas" es obligatorio
+        ->call('seleccionarExperiencia', $estructura->id)
+        ->assertSet('experienciaId', $estructura->id)
+        ->assertCount('complementos', 2); // estructura + neón
+
+    // El Fotomatón Solo no lleva nada incluido.
+    $solo = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail();
+
+    Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $solo->id)
+        ->assertCount('complementos', 0);
 });
 
-it('solo ofrece los complementos de la experiencia elegida', function () {
-    $sofa = Experiencia::where('slug', 'photocall-sofa-decorado')->firstOrFail();
+it('los complementos incluidos en la máquina no se vuelven a cobrar', function () {
+    $estructura = Experiencia::where('slug', 'fotomaton-estructura-neon')->firstOrFail();
 
-    $componente = Livewire::test(Configurador::class)
-        ->call('seleccionarExperiencia', $sofa->id);
+    $desglose = Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $estructura->id)
+        ->instance()
+        ->desglose();
 
-    $ofrecidos = $sofa->complementos->pluck('slug');
-
-    // El photocall NO ofrece impresiones, pero sí fondo floral.
-    expect($ofrecidos)->toContain('fondo-floral')
-        ->and($ofrecidos)->not->toContain('impresiones-ilimitadas');
+    // 600 € incluye estructura y neón: los obligatorios llevan precio_override 0.
+    expect($desglose->subtotal)->toBe(600.0)
+        ->and($desglose->totalComplementos)->toBe(0.0)
+        ->and($desglose->total)->toBe(600.0);
 });
 
 it('completa el wizard y crea una reserva solicitada enviando el aviso al administrador', function () {
-    $fotomaton = Experiencia::where('slug', 'fotomaton-clasico')->firstOrFail();
+    $fotomaton = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail();
 
     Livewire::test(Configurador::class)
         ->call('seleccionarExperiencia', $fotomaton->id)
@@ -80,7 +92,7 @@ it('completa el wizard y crea una reserva solicitada enviando el aviso al admini
 });
 
 it('exige aceptar la política de privacidad (LOPD) para enviar', function () {
-    $fotomaton = Experiencia::where('slug', 'fotomaton-clasico')->firstOrFail();
+    $fotomaton = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail();
 
     Livewire::test(Configurador::class)
         ->call('seleccionarExperiencia', $fotomaton->id)
@@ -98,7 +110,7 @@ it('exige aceptar la política de privacidad (LOPD) para enviar', function () {
 });
 
 it('el honeypot bloquea los envíos automatizados (anti-spam)', function () {
-    $fotomaton = Experiencia::where('slug', 'fotomaton-clasico')->firstOrFail();
+    $fotomaton = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail();
 
     Livewire::test(Configurador::class)
         ->call('seleccionarExperiencia', $fotomaton->id)
@@ -120,8 +132,166 @@ it('el honeypot bloquea los envíos automatizados (anti-spam)', function () {
     Mail::assertNothingQueued();
 });
 
+// ---------------------------------------------------------------------------
+// Catálogo real: grupos "elige uno", horas extra, a consultar y base de pack
+// ---------------------------------------------------------------------------
+
+it('en un grupo "elige uno" solo puede quedar seleccionada una opción', function () {
+    $fotomaton = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail();
+    $packA = Complemento::where('slug', 'hora-loca-a')->firstOrFail();
+    $packB = Complemento::where('slug', 'hora-loca-b')->firstOrFail();
+
+    $componente = Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $fotomaton->id)
+        ->call('alternarComplemento', $packA->id)
+        ->assertSet("complementos.{$packA->id}", 1)
+        ->call('alternarComplemento', $packB->id);
+
+    // Al elegir el Pack B, el A deja de estar seleccionado.
+    expect($componente->get('complementos'))->toHaveKey($packB->id)
+        ->and($componente->get('complementos'))->not->toHaveKey($packA->id);
+
+    // Y solo cuenta una línea en el desglose.
+    expect($componente->instance()->desglose()->lineasComplementos)->toHaveCount(1);
+});
+
+it('los complementos sin grupo se pueden seleccionar a la vez', function () {
+    $fotomaton = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail();
+    $neon = Complemento::where('slug', 'neon')->firstOrFail();
+    $alfombra = Complemento::where('slug', 'alfombra')->firstOrFail();
+
+    $componente = Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $fotomaton->id)
+        ->call('alternarComplemento', $neon->id)
+        ->call('alternarComplemento', $alfombra->id);
+
+    expect($componente->get('complementos'))->toHaveKeys([$neon->id, $alfombra->id]);
+});
+
+it('el stepper de horas extra recalcula el total y respeta el tope', function () {
+    $fotomaton = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail(); // 450 €, hora extra 70 €
+
+    $componente = Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $fotomaton->id)
+        ->call('subirHoraExtra')
+        ->call('subirHoraExtra')
+        ->assertSet('horasExtra', 2);
+
+    expect($componente->instance()->desglose()->total)->toBe(590.0); // 450 + 2 × 70
+
+    $componente->call('bajarHoraExtra')->assertSet('horasExtra', 1);
+
+    // No baja de cero.
+    $componente->call('bajarHoraExtra')->call('bajarHoraExtra')->assertSet('horasExtra', 0);
+
+    // Ni sube del tope.
+    $componente->call('actualizarHorasExtra', 99)
+        ->assertSet('horasExtra', CalculadoraPrecioService::MAX_HORAS_EXTRA);
+});
+
+it('cambiar la máquina base del pack conserva el pack y recalcula con el suplemento', function () {
+    $fotomaton = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail();
+    $espejo = Experiencia::where('slug', 'espejo-magico')->firstOrFail();
+    $pack = Pack::where('slug', 'pack-bronce')->firstOrFail(); // 700 €, espejo +80 €
+
+    $componente = Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $fotomaton->id)
+        ->call('elegirPack', $pack->id)
+        ->assertSet('packId', $pack->id);
+
+    expect($componente->instance()->desglose()->total)->toBe(700.0);
+
+    $componente->call('cambiarBasePack', $espejo->id)
+        ->assertSet('packId', $pack->id)          // el pack se mantiene
+        ->assertSet('experienciaId', $espejo->id) // la máquina cambia
+        ->assertSet('horasExtra', 0);
+
+    expect($componente->instance()->desglose()->total)->toBe(780.0)   // 700 + 80
+        ->and($componente->instance()->desglose()->suplementoBase)->toBe(80.0);
+});
+
+it('no acepta como base del pack una máquina que no admite', function () {
+    $fotomaton = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail();
+    $pack = Pack::where('slug', 'pack-360-loco')->firstOrFail(); // base 360, sin alternativas
+    $plataforma = Experiencia::where('slug', 'plataforma-360')->firstOrFail();
+
+    Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $plataforma->id)
+        ->call('elegirPack', $pack->id)
+        ->call('cambiarBasePack', $fotomaton->id)
+        ->assertSet('experienciaId', $plataforma->id);  // se ignora
+});
+
+it('un complemento a consultar se guarda en la reserva pero no suma al total', function () {
+    $fotomaton = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail();
+    $portafoto = Complemento::where('slug', 'portafoto-iman')->firstOrFail();
+
+    Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $fotomaton->id)
+        ->call('alternarComplemento', $portafoto->id)
+        ->call('siguiente')
+        ->call('siguiente')
+        ->set('fecha', '2027-05-01')
+        ->set('concello', 'A Coruña')
+        ->call('siguiente')
+        ->set('clienteNombre', 'Cliente Consulta')
+        ->set('clienteEmail', 'consulta@example.com')
+        ->set('clienteTelefono', '600000000')
+        ->set('aceptoLopd', true)
+        ->call('siguiente')
+        ->call('enviar')
+        ->assertHasNoErrors();
+
+    $reserva = Reserva::where('cliente_email', 'consulta@example.com')->firstOrFail();
+
+    // 450 base + 30 de montaje de la zona de A Coruña; el portafoto no suma.
+    expect((float) $reserva->total_complementos)->toBe(0.0)
+        ->and((float) $reserva->total)->toBe(480.0)
+        ->and($reserva->complementos->pluck('slug'))->toContain('portafoto-iman')
+        ->and((float) $reserva->complementos->firstWhere('slug', 'portafoto-iman')->pivot->precio_congelado)->toBe(0.0);
+});
+
+it('congela las horas extra contratadas en la reserva', function () {
+    $fotomaton = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail();
+
+    Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $fotomaton->id)
+        ->call('subirHoraExtra')
+        ->call('siguiente')
+        ->call('siguiente')
+        ->set('fecha', '2027-05-02')
+        ->set('concello', 'A Coruña')
+        ->call('siguiente')
+        ->set('clienteNombre', 'Cliente Horas')
+        ->set('clienteEmail', 'horas@example.com')
+        ->set('clienteTelefono', '600000000')
+        ->set('aceptoLopd', true)
+        ->call('siguiente')
+        ->call('enviar')
+        ->assertHasNoErrors();
+
+    $reserva = Reserva::where('cliente_email', 'horas@example.com')->firstOrFail();
+
+    // 450 base + 70 de la hora extra + 30 de montaje de la zona de A Coruña.
+    expect($reserva->horas_extra)->toBe(1)
+        ->and((float) $reserva->total)->toBe(550.0);
+});
+
+it('ofrece los 313 concellos de Galicia agrupados por provincia', function () {
+    $concellos = Livewire::test(Configurador::class)->instance()->concellos();
+
+    expect($concellos->keys()->all())->toBe(['A Coruña', 'Lugo', 'Ourense', 'Pontevedra'])
+        ->and($concellos['A Coruña'])->toHaveCount(93)
+        ->and($concellos['Lugo'])->toHaveCount(67)
+        ->and($concellos['Ourense'])->toHaveCount(92)
+        ->and($concellos['Pontevedra'])->toHaveCount(61)
+        ->and($concellos->flatten())->toHaveCount(313)
+        ->and($concellos['Pontevedra'])->toContain('Vigo')
+        ->and($concellos['Lugo'])->toContain('Ribadeo');
+});
+
 it('no deja avanzar el paso del evento sin fecha ni concello', function () {
-    $fotomaton = Experiencia::where('slug', 'fotomaton-clasico')->firstOrFail();
+    $fotomaton = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail();
 
     Livewire::test(Configurador::class)
         ->call('seleccionarExperiencia', $fotomaton->id)

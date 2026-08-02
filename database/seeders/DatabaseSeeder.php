@@ -25,12 +25,17 @@ class DatabaseSeeder extends Seeder
             );
         }
 
+        // Catálogo REAL de Retrátate (sustituye a los antiguos CatalogoSeeder/PackSeeder de demo).
         $this->call([
-            CatalogoSeeder::class,
-            PackSeeder::class,
+            CatalogoRetratateSeeder::class,
+            BrandingRetratateSeeder::class,
             TemporadaSeeder::class,
             ZonaPorteSeeder::class,
-            ReservaSeeder::class,
         ]);
+
+        // Las reservas son datos de demo: nunca en producción.
+        if (! app()->isProduction()) {
+            $this->call(ReservaSeeder::class);
+        }
     }
 }
