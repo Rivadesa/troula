@@ -212,6 +212,27 @@ class ReservaResource extends Resource
                 Infolists\Components\TextEntry::make('total')->money('EUR')->weight('bold')->size('lg'),
             ])->columns(3),
 
+            Infolists\Components\Section::make('Contrato')
+                ->schema([
+                    Infolists\Components\TextEntry::make('contrato_aceptado_en')
+                        ->label('Aceptado el')
+                        ->dateTime('d/m/Y H:i:s'),
+                    Infolists\Components\TextEntry::make('contrato_ip')->label('IP'),
+                    Infolists\Components\TextEntry::make('cliente_dni')->label('DNI del cliente')->placeholder('—'),
+                    Infolists\Components\TextEntry::make('cliente_direccion')->label('Dirección')->placeholder('—')->columnSpanFull(),
+                    Infolists\Components\TextEntry::make('contrato_hash')
+                        ->label('Huella del documento (SHA-256)')
+                        ->copyable()
+                        ->columnSpanFull(),
+                    Infolists\Components\TextEntry::make('contrato_texto')
+                        ->label('Texto firmado')
+                        ->columnSpanFull()
+                        ->extraAttributes(['style' => 'white-space: pre-wrap; max-height: 22rem; overflow-y: auto;']),
+                ])
+                ->columns(2)
+                ->collapsed()
+                ->visible(fn (Reserva $record): bool => $record->contratoFirmado()),
+
             Infolists\Components\Section::make('Pagos')->schema([
                 Infolists\Components\RepeatableEntry::make('pagos')
                     ->hiddenLabel()

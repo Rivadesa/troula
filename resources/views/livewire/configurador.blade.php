@@ -26,13 +26,16 @@
 
             @if ($urlPago)
                 <div class="mt-6 rounded-2xl bg-marca-50 p-5">
+                    @php $hayContrato = filled($empresa->contrato_plantilla); @endphp
                     <p class="text-sm text-gray-600">
-                        Para dejarla cerrada, solo falta abonar la señal de
+                        Para dejarla cerrada, solo falta
+                        @if ($hayContrato) firmar el contrato y @endif
+                        abonar la señal de
                         <span class="font-bold text-marca-700">{{ number_format($importeSenal, 2, ',', '.') }} €</span>.
                     </p>
                     <a href="{{ $urlPago }}"
                        class="mt-4 inline-block rounded-full bg-marca-600 px-8 py-3 font-semibold uppercase tracking-wide text-white hover:bg-marca-700">
-                        Pagar la señal
+                        {{ $hayContrato ? 'Firmar y pagar' : 'Pagar la señal' }}
                     </a>
                     <p class="mt-3 text-xs text-gray-400">
                         También te enviamos este enlace por email, por si prefieres hacerlo más tarde.

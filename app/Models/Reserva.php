@@ -33,6 +33,13 @@ class Reserva extends Model
         'cliente_nombre',
         'cliente_email',
         'cliente_telefono',
+        'cliente_dni',
+        'cliente_direccion',
+        'contrato_texto',
+        'contrato_hash',
+        'contrato_aceptado_en',
+        'contrato_ip',
+        'contrato_user_agent',
         'lugar_evento',
         'observaciones',
         'subtotal',
@@ -48,6 +55,7 @@ class Reserva extends Model
         'fecha_evento' => 'date',
         'turno' => Turno::class,
         'horas_extra' => 'integer',
+        'contrato_aceptado_en' => 'datetime',
         'estado' => EstadoReserva::class,
         'subtotal' => 'decimal:2',
         'ajuste_temporada' => 'decimal:2',
@@ -122,6 +130,14 @@ class Reserva extends Model
     public function pagos(): HasMany
     {
         return $this->hasMany(Pago::class, 'reserva_id');
+    }
+
+    /**
+     * ¿El cliente ya ha aceptado el contrato?
+     */
+    public function contratoFirmado(): bool
+    {
+        return $this->contrato_aceptado_en !== null;
     }
 
     /**

@@ -9,9 +9,11 @@ use App\Models\Configuracion;
 use App\Models\Pago;
 use App\Models\Reserva;
 use App\Services\Pagos\RedsysPasarela;
+use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\DB;
 use Illuminate\Support\Facades\Log;
+use Illuminate\Support\Facades\URL;
 
 /**
  * Cobro de la señal de una reserva: transferencia o TPV de Redsys.
@@ -30,6 +32,10 @@ class PagoController extends Controller
     {
         $pago = $this->senalDe($reserva);
 
+        if ($redirigir = $this->exigirContrato($reserva)) {
+            return $redirigir;
+        }
+
         return view('pago.mostrar', [
             'reserva' => $reserva->load('experiencia', 'pack'),
             'pago' => $pago,
@@ -44,6 +50,10 @@ class PagoController extends Controller
     {
         $pago = $this->senalDe($reserva);
         $config = Configuracion::actual();
+
+        if ($redirigir = $this->exigirContrato($reserva)) {
+            return $redirigir;
+        }
 
         abort_unless($config->cobraConTarjeta(), 404, 'El pago con tarjeta no está disponible.');
 
@@ -119,6 +129,19 @@ class PagoController extends Controller
             'pago' => $this->senalDe($reserva),
             'config' => $config,
         ]);
+    }
+
+    /**
+     * Si hay contrato configurado y la reserva no lo tiene firmado, manda a
+     * firmarlo: es requisito para seguir con el proceso.
+     */
+    private function exigirContrato(Reserva $reserva): ?RedirectResponse
+    {
+        if ($reserva->contratoFirmado() || blank(Configuracion::actual()->contrato_plantilla)) {
+            return null;
+        }
+
+        return redirect()->to(URL::signedRoute('contrato.mostrar', ['reserva' => $reserva->referencia]));
     }
 
     /**

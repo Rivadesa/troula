@@ -1,5 +1,6 @@
 <?php
 
+use App\Http\Controllers\ContratoController;
 use App\Http\Controllers\PagoController;
 use App\Livewire\Configurador;
 use Illuminate\Support\Facades\Route;
@@ -15,6 +16,11 @@ Route::view('/privacidad', 'legal.privacidad')->name('privacidad');
  * URL FIRMADA y la reserva se resuelve por su referencia (no por id).
  */
 Route::middleware('signed')->group(function () {
+    // El contrato va antes del pago: hay que firmarlo para seguir.
+    Route::get('/reserva/{reserva:referencia}/contrato', [ContratoController::class, 'mostrar'])->name('contrato.mostrar');
+    Route::post('/reserva/{reserva:referencia}/contrato', [ContratoController::class, 'aceptar'])->name('contrato.aceptar');
+    Route::get('/reserva/{reserva:referencia}/contrato/firmado', [ContratoController::class, 'ver'])->name('contrato.ver');
+
     Route::get('/reserva/{reserva:referencia}/pago', [PagoController::class, 'mostrar'])->name('pago.mostrar');
     Route::get('/reserva/{reserva:referencia}/pago/tarjeta', [PagoController::class, 'redsys'])->name('pago.redsys');
     Route::get('/reserva/{reserva:referencia}/pago/transferencia', [PagoController::class, 'transferencia'])->name('pago.transferencia');
