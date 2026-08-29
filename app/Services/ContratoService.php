@@ -45,6 +45,7 @@ class ContratoService
             'titular_cuenta' => 'Titular de la cuenta bancaria',
             'referencia' => 'Referencia de la reserva',
             'fecha_hoy' => 'Fecha en que se firma',
+            'firma_cliente' => 'Registro de la aceptación electrónica del cliente',
         ];
     }
 
@@ -118,7 +119,36 @@ class ContratoService
 
             'referencia' => (string) $reserva->referencia,
             'fecha_hoy' => Carbon::now()->translatedFormat('j \d\e F \d\e Y'),
+            'firma_cliente' => $this->firmaCliente($reserva),
         ];
+    }
+
+    /**
+     * Bloque que sustituye a la rúbrica manuscrita: deja constancia dentro del
+     * propio documento de quién lo aceptó, cuándo y desde dónde.
+     *
+     * Antes de aceptar dice que está pendiente, para que el cliente vea qué va a
+     * firmar exactamente.
+     */
+    private function firmaCliente(Reserva $reserva): string
+    {
+        if (! $reserva->contratoFirmado()) {
+            return 'PENDIENTE DE ACEPTACIÓN';
+        }
+
+        $lineas = [
+            'ACEPTADO Y FIRMADO ELECTRÓNICAMENTE',
+            $reserva->cliente_nombre.(filled($reserva->cliente_dni) ? ', DNI '.$reserva->cliente_dni : ''),
+            'Fecha y hora: '.$reserva->contrato_aceptado_en->format('d/m/Y H:i:s'),
+        ];
+
+        if (filled($reserva->contrato_ip)) {
+            $lineas[] = 'Dirección IP: '.$reserva->contrato_ip;
+        }
+
+        $lineas[] = 'Referencia de la reserva: '.$reserva->referencia;
+
+        return implode("\n", $lineas);
     }
 
     /**

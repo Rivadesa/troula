@@ -17,6 +17,11 @@ SERVICIO:
 {{servicio}}
 TOTAL: {{total}} · SEÑAL: {{senal}} · RESTO: {{resto}}
 Cuenta: {{iban}}
+
+Firman:
+{{titular_nombre}}
+LOS INTERESADOS
+{{firma_cliente}}
 TXT;
 
 beforeEach(function () {
@@ -184,6 +189,42 @@ it('la copia del contrato firmado muestra el registro de aceptación', function 
         ->assertOk()
         ->assertSee('Registro de aceptación')
         ->assertSee($reserva->fresh()->contrato_hash);
+});
+
+it('el bloque de firma queda dentro del contrato aceptado', function () {
+    $reserva = reservaParaContrato();
+
+    // Antes de aceptar, el documento avisa de que está pendiente.
+    expect(app(ContratoService::class)->generar($reserva))->toContain('PENDIENTE DE ACEPTACIÓN');
+
+    $this->post(URL::signedRoute('contrato.aceptar', ['reserva' => $reserva->referencia]), ['acepto' => '1']);
+
+    $texto = $reserva->fresh()->contrato_texto;
+
+    // Y el firmado lleva dentro quién, cuándo y desde dónde.
+    expect($texto)->toContain('ACEPTADO Y FIRMADO ELECTRÓNICAMENTE')
+        ->toContain('Lucía Varela')
+        ->toContain('32717262S')
+        ->toContain($reserva->fresh()->contrato_aceptado_en->format('d/m/Y'))
+        ->not->toContain('PENDIENTE DE ACEPTACIÓN');
+});
+
+it('descarga el contrato firmado en PDF', function () {
+    $reserva = reservaParaContrato();
+
+    // Sin firmar todavía no hay PDF que descargar.
+    $this->get(URL::signedRoute('contrato.pdf', ['reserva' => $reserva->referencia]))->assertNotFound();
+
+    $this->post(URL::signedRoute('contrato.aceptar', ['reserva' => $reserva->referencia]), ['acepto' => '1']);
+
+    $respuesta = $this->get(URL::signedRoute('contrato.pdf', ['reserva' => $reserva->referencia]))
+        ->assertOk()
+        ->assertHeader('content-type', 'application/pdf');
+
+    expect($respuesta->headers->get('content-disposition'))
+        ->toContain('contrato-'.$reserva->referencia.'.pdf')
+        // Un PDF de verdad empieza por %PDF.
+        ->and(substr($respuesta->getContent(), 0, 4))->toBe('%PDF');
 });
 
 it('la pantalla del contrato exige URL firmada', function () {

@@ -79,11 +79,18 @@ class CargarPlantillaContrato extends Command
         'la cantidad de 100€ (u otra cantidad solicitada por los novios)'
             => 'la cantidad de {{senal}} (u otra cantidad acordada con los INTERESADOS)',
 
+        // Bloque de firma: donde el documento en papel dejaba hueco para la
+        // rúbrica, ahora va el registro de la aceptación electrónica.
+        '(ambos)' => '{{firma_cliente}}',
+
         // Rótulo del bloque de datos. Va antes que la sustitución general:
         // strtr elige siempre la coincidencia más larga en cada posición.
         'NOVIOS:' => 'INTERESADO:',
         'NOVIOS' => 'INTERESADOS',
     ];
+
+    /** Restos de la extracción del .docx que no son texto del contrato. */
+    private const BASURA = ['535305508000'];
 
     /**
      * El bloque del servicio contratado del ejemplo se sustituye entero: cada
@@ -150,8 +157,14 @@ class CargarPlantillaContrato extends Command
     private function limpiarLineasVacias(string $plantilla): string
     {
         $limpia = preg_replace('/^D\/Dña\.\s*,\s*DNI\s*,\s*Teléfono:\s*\.\s*$\n?/mu', '', $plantilla);
+        $limpia ??= $plantilla;
 
-        return $limpia ?? $plantilla;
+        // Identificadores de objetos incrustados que arrastra la extracción.
+        foreach (self::BASURA as $resto) {
+            $limpia = (string) preg_replace('/^'.preg_quote($resto, '/').'\s*$\n?/mu', '', $limpia);
+        }
+
+        return $limpia;
     }
 
     /**

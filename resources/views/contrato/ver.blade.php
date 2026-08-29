@@ -40,10 +40,16 @@
                     </p>
                 </div>
 
-                <button type="button" onclick="window.print()"
-                        class="mt-6 w-full rounded-full border border-gray-200 px-6 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50 print:hidden">
-                    Imprimir o guardar como PDF
-                </button>
+                <div class="mt-6 grid gap-3 sm:grid-cols-2 print:hidden">
+                    <a href="{{ \Illuminate\Support\Facades\URL::signedRoute('contrato.pdf', ['reserva' => $reserva->referencia]) }}"
+                       class="rounded-full bg-marca-600 px-6 py-3 text-center text-sm font-semibold uppercase tracking-wide text-white hover:bg-marca-700">
+                        Descargar en PDF
+                    </a>
+                    <button type="button" onclick="window.print()"
+                            class="rounded-full border border-gray-200 px-6 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50">
+                        Imprimir
+                    </button>
+                </div>
             </div>
         </div>
     </div>

@@ -4,6 +4,7 @@ namespace App\Http\Controllers;
 
 use App\Models\Reserva;
 use App\Services\ContratoService;
+use Barryvdh\DomPDF\Facade\Pdf;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
@@ -53,11 +54,22 @@ class ContratoController extends Controller
             ['acepto.accepted' => 'Debes aceptar el contrato para continuar.'],
         );
 
-        // El DNI y la dirección ya vienen del formulario de reserva, así que el
-        // texto se genera con ellos dentro.
-        $texto = $this->contratos->generar($reserva);
+        // La aceptación se registra ANTES de generar el texto para que el bloque
+        // de firma ("aceptado por X el día Y desde la IP Z") quede DENTRO del
+        // documento y, por tanto, dentro de su hash.
+        $reserva->update([
+            'contrato_aceptado_en' => now(),
+            'contrato_ip' => $request->ip(),
+            'contrato_user_agent' => substr((string) $request->userAgent(), 0, 255),
+        ]);
+
+        // El DNI y la dirección ya vienen del formulario de reserva.
+        $texto = $this->contratos->generar($reserva->fresh());
 
         if (trim($texto) === '') {
+            // Sin texto no hay nada firmado: se deshace el registro.
+            $reserva->update(['contrato_aceptado_en' => null, 'contrato_ip' => null, 'contrato_user_agent' => null]);
+
             throw ValidationException::withMessages([
                 'acepto' => 'No se ha podido generar el contrato. Ponte en contacto con nosotros.',
             ]);
@@ -66,9 +78,6 @@ class ContratoController extends Controller
         $reserva->update([
             'contrato_texto' => $texto,
             'contrato_hash' => $this->contratos->hash($texto),
-            'contrato_aceptado_en' => now(),
-            'contrato_ip' => $request->ip(),
-            'contrato_user_agent' => substr((string) $request->userAgent(), 0, 255),
         ]);
 
         return redirect()->to(URL::signedRoute('pago.mostrar', ['reserva' => $reserva->referencia]));
@@ -82,5 +91,18 @@ class ContratoController extends Controller
         abort_unless($reserva->contratoFirmado(), 404);
 
         return view('contrato.ver', ['reserva' => $reserva]);
+    }
+
+    /**
+     * Descarga del contrato firmado en PDF.
+     */
+    public function pdf(Reserva $reserva)
+    {
+        abort_unless($reserva->contratoFirmado(), 404);
+
+        $pdf = Pdf::loadView('contrato.pdf', ['reserva' => $reserva])
+            ->setPaper('a4');
+
+        return $pdf->download('contrato-'.$reserva->referencia.'.pdf');
     }
 }

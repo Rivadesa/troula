@@ -15,6 +15,7 @@ use Filament\Tables;
 use Filament\Tables\Table;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Database\Eloquent\Model;
+use Illuminate\Support\Facades\URL;
 
 class ReservaResource extends Resource
 {
@@ -212,26 +213,65 @@ class ReservaResource extends Resource
                 Infolists\Components\TextEntry::make('total')->money('EUR')->weight('bold')->size('lg'),
             ])->columns(3),
 
+            // Siempre visible: el administrador necesita ver de un vistazo si el
+            // contrato está firmado O pendiente. Antes solo aparecía al firmarlo
+            // y encima plegada, así que parecía que no existía.
             Infolists\Components\Section::make('Contrato')
+                ->icon('heroicon-o-document-text')
+                ->headerActions([
+                    Infolists\Components\Actions\Action::make('descargarPdf')
+                        ->label('Descargar PDF')
+                        ->icon('heroicon-o-arrow-down-tray')
+                        ->url(fn (Reserva $record): string => URL::signedRoute(
+                            'contrato.pdf',
+                            ['reserva' => $record->referencia],
+                        ))
+                        ->openUrlInNewTab()
+                        ->visible(fn (Reserva $record): bool => $record->contratoFirmado()),
+                    Infolists\Components\Actions\Action::make('verContrato')
+                        ->label('Ver')
+                        ->icon('heroicon-o-arrow-top-right-on-square')
+                        ->color('gray')
+                        ->url(fn (Reserva $record): string => URL::signedRoute(
+                            'contrato.ver',
+                            ['reserva' => $record->referencia],
+                        ))
+                        ->openUrlInNewTab()
+                        ->visible(fn (Reserva $record): bool => $record->contratoFirmado()),
+                ])
                 ->schema([
-                    Infolists\Components\TextEntry::make('contrato_aceptado_en')
-                        ->label('Aceptado el')
-                        ->dateTime('d/m/Y H:i:s'),
-                    Infolists\Components\TextEntry::make('contrato_ip')->label('IP'),
+                    Infolists\Components\TextEntry::make('estado_contrato')
+                        ->hiddenLabel()
+                        ->badge()
+                        ->color(fn (Reserva $record): string => $record->contratoFirmado() ? 'success' : 'warning')
+                        ->state(fn (Reserva $record): string => $record->contratoFirmado()
+                            ? 'Firmado el '.$record->contrato_aceptado_en->format('d/m/Y \a \l\a\s H:i')
+                            : 'Pendiente de firma')
+                        ->columnSpanFull(),
+
                     Infolists\Components\TextEntry::make('cliente_dni')->label('DNI del cliente')->placeholder('—'),
+                    Infolists\Components\TextEntry::make('contrato_ip')
+                        ->label('IP desde la que se firmó')
+                        ->placeholder('—'),
                     Infolists\Components\TextEntry::make('cliente_direccion')->label('Dirección')->placeholder('—')->columnSpanFull(),
                     Infolists\Components\TextEntry::make('contrato_hash')
                         ->label('Huella del documento (SHA-256)')
+                        ->helperText('Permite comprobar que el texto firmado no se ha modificado.')
                         ->copyable()
+                        ->placeholder('—')
                         ->columnSpanFull(),
+
                     Infolists\Components\TextEntry::make('contrato_texto')
                         ->label('Texto firmado')
+                        ->placeholder('El cliente todavía no ha aceptado el contrato.')
                         ->columnSpanFull()
-                        ->extraAttributes(['style' => 'white-space: pre-wrap; max-height: 22rem; overflow-y: auto;']),
+                        ->extraAttributes([
+                            'style' => 'white-space: pre-wrap; max-height: 22rem; overflow-y: auto;'
+                                .'border:1px solid rgb(228 228 231); border-radius:.5rem; padding:.75rem;',
+                        ]),
                 ])
                 ->columns(2)
-                ->collapsed()
-                ->visible(fn (Reserva $record): bool => $record->contratoFirmado()),
+                ->collapsed(),
 
             Infolists\Components\Section::make('Pagos')->schema([
                 Infolists\Components\RepeatableEntry::make('pagos')

@@ -20,6 +20,7 @@ Route::middleware('signed')->group(function () {
     Route::get('/reserva/{reserva:referencia}/contrato', [ContratoController::class, 'mostrar'])->name('contrato.mostrar');
     Route::post('/reserva/{reserva:referencia}/contrato', [ContratoController::class, 'aceptar'])->name('contrato.aceptar');
     Route::get('/reserva/{reserva:referencia}/contrato/firmado', [ContratoController::class, 'ver'])->name('contrato.ver');
+    Route::get('/reserva/{reserva:referencia}/contrato/pdf', [ContratoController::class, 'pdf'])->name('contrato.pdf');
 
     Route::get('/reserva/{reserva:referencia}/pago', [PagoController::class, 'mostrar'])->name('pago.mostrar');
     Route::get('/reserva/{reserva:referencia}/pago/tarjeta', [PagoController::class, 'redsys'])->name('pago.redsys');
