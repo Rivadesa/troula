@@ -170,7 +170,7 @@ class CatalogoRetratateSeeder extends Seeder
                 'precio_base' => 450,
                 'precio_hora_extra' => 70,
                 'unidades' => 2,
-                'permite_turnos' => true,
+                'permite_turnos' => false,
                 'orden' => 1,
             ],
             [
@@ -179,7 +179,7 @@ class CatalogoRetratateSeeder extends Seeder
                 'descripcion' => 'Fotomatón con fondo de tela de 2x2 m o 2,2x2,2 m a juego con tu evento.',
                 'precio_base' => 480,
                 'unidades' => 1,
-                'permite_turnos' => true,
+                'permite_turnos' => false,
                 'orden' => 2,
             ],
             [
@@ -188,7 +188,7 @@ class CatalogoRetratateSeeder extends Seeder
                 'descripcion' => 'Fotomatón con photocall de lentejuelas de 2,4x2,4 m: brillo asegurado en todas las fotos.',
                 'precio_base' => 500,
                 'unidades' => 1,
-                'permite_turnos' => true,
+                'permite_turnos' => false,
                 'orden' => 3,
             ],
             [
@@ -197,7 +197,7 @@ class CatalogoRetratateSeeder extends Seeder
                 'descripcion' => 'Fotomatón con estructura decorada y neón a elegir. Puedes añadir el sofá para completar el rincón.',
                 'precio_base' => 600,
                 'unidades' => 1,
-                'permite_turnos' => true,
+                'permite_turnos' => false,
                 'orden' => 4,
             ],
             [
@@ -206,7 +206,7 @@ class CatalogoRetratateSeeder extends Seeder
                 'descripcion' => 'Fotomatón con iluminación beauty: retratos favorecedores estilo estudio.',
                 'precio_base' => 480,
                 'unidades' => 1,
-                'permite_turnos' => true,
+                'permite_turnos' => false,
                 'orden' => 5,
             ],
             [
@@ -215,7 +215,7 @@ class CatalogoRetratateSeeder extends Seeder
                 'descripcion' => 'La versión premium del Beauty Glam, con acabado y decorado de gama alta.',
                 'precio_base' => 600,
                 'unidades' => 1,
-                'permite_turnos' => true,
+                'permite_turnos' => false,
                 'orden' => 6,
             ],
             [
@@ -224,7 +224,7 @@ class CatalogoRetratateSeeder extends Seeder
                 'descripcion' => 'Espejo interactivo de cuerpo entero con animaciones, firma táctil y marcos personalizados.',
                 'precio_base' => 530,
                 'unidades' => 1,
-                'permite_turnos' => true,
+                'permite_turnos' => false,
                 'orden' => 7,
             ],
             [
@@ -233,7 +233,7 @@ class CatalogoRetratateSeeder extends Seeder
                 'descripcion' => 'Plataforma giratoria que graba vídeos 360º a cámara lenta, listos para compartir.',
                 'precio_base' => 500,
                 'unidades' => 1,
-                'permite_turnos' => true,
+                'permite_turnos' => false,
                 'orden' => 8,
             ],
             [
@@ -251,7 +251,7 @@ class CatalogoRetratateSeeder extends Seeder
                 'descripcion' => 'Cabina hinchable gigante iluminada con LED: privacidad y mucho color.',
                 'precio_base' => 530,
                 'unidades' => 1,
-                'permite_turnos' => true,
+                'permite_turnos' => false,
                 'orden' => 10,
             ],
             [
