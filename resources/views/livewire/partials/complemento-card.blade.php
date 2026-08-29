@@ -36,6 +36,9 @@
             <p class="mt-1 text-sm font-semibold text-marca-700">Incluido</p>
         @elseif ($aConsultar)
             <p class="mt-1 text-sm font-semibold text-acento-600">A consultar</p>
+        @elseif ((float) $precioEfectivo === 0.0)
+            {{-- Elección incluida en el precio de la máquina (tela, estructura, neón…) --}}
+            <p class="mt-1 text-sm font-semibold text-marca-700">Incluida</p>
         @else
             <p class="mt-1 text-sm font-semibold text-marca-700">+ {{ $eur($precioEfectivo) }}</p>
         @endif

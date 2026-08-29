@@ -70,6 +70,73 @@ COMPLEMENTOS = {
     (28, 5): "invitaciones-madera",
 }
 
+# Modelos concretos que el cliente elige dentro de una máquina: telas del
+# photocall (p4), lentejuelas (p5), estructuras (p6), neones (p16) y sofás (p6).
+# Van a la misma carpeta que el resto de complementos.
+VARIANTES = {
+    # Telas del photocall
+    (4, 2): "tela-tropical-palmeras",
+    (4, 3): "tela-gran-viaje",
+    (4, 4): "tela-madera-banderines",
+    (4, 5): "tela-love-is-in-the-air",
+    (4, 6): "tela-tropical-rosa",
+    (4, 7): "tela-globos",
+    (4, 8): "tela-flamenco-love",
+    (4, 9): "tela-topos-dorados",
+    (4, 10): "tela-corazones-colores",
+    (4, 11): "tela-nuestra-boda",
+    (4, 13): "tela-madera-luces",
+    (4, 14): "tela-corazones-rosas",
+    (4, 15): "tela-hojas-acuarela",
+    (4, 16): "tela-rosas-fucsia",
+    (4, 17): "tela-flores-silvestres",
+    (4, 18): "tela-rosa-corazones",
+    (4, 19): "tela-hojas-doradas",
+    (4, 20): "tela-londres",
+    (4, 21): "tela-helados",
+    # Lentejuelas
+    (5, 1): "lentejuelas-plata",
+    (5, 2): "lentejuelas-holografica",
+    # Estructuras (los nombres salen del propio texto de la página 6)
+    (6, 9): "estructura-fondo-jardin-vertical",
+    (6, 10): "estructura-jardin-flores",
+    (6, 11): "estructura-hexagono-madera",
+    (6, 12): "estructura-triangulo-madera",
+    (6, 15): "estructura-cuadrado-metal",
+    (6, 16): "estructura-lentejuelas",
+    (6, 17): "estructura-shimmer-wall",
+    # Sofás
+    (6, 23): "sofa-rosa-palo",
+    (6, 24): "sofa-chester-marron",
+    (6, 25): "sofa-azul",
+    (6, 26): "sofa-malva",
+    (6, 27): "sofa-amarillo",
+    (6, 28): "sofa-verde",
+    (6, 29): "sofa-rosa-claro",
+    (6, 30): "sofa-rojo",
+    # Neones
+    (16, 1): "neon-fin-del-mundo-arco",
+    (16, 2): "neon-fin-del-mundo",
+    (16, 3): "neon-sempre-ti",
+    (16, 4): "neon-me-quedo-contigo",
+    (16, 5): "neon-si-quiero",
+    (16, 6): "neon-a-los-locos",
+    (16, 8): "neon-querote",
+    (16, 9): "neon-contigo-al-fin-del-mundo",
+    (16, 10): "neon-mejor-equipo",
+    (16, 11): "neon-que-no-sea-contigo",
+    (16, 12): "neon-siempre-seras-tu",
+    (16, 13): "neon-la-vida-es-una-verbena",
+    (16, 14): "neon-ata-o-infinito",
+    (16, 15): "neon-cala-e-bicame",
+    (16, 16): "neon-aqui-empeza",
+    (16, 17): "neon-contigo-todo",
+    (16, 18): "neon-el-amor-todo-locura",
+    (16, 19): "neon-love-is-love",
+    (16, 20): "neon-juntos-es-mejor",
+    (16, 21): "neon-aqui-se-lia-parda",
+}
+
 MAX_LADO = 1400
 CALIDAD = 85
 
@@ -78,7 +145,11 @@ def extraer(pdf: str, destino_base: str) -> None:
     reader = PdfReader(pdf)
     guardadas, fallidas = 0, []
 
-    for carpeta, mapa in (("experiencias", EXPERIENCIAS), ("complementos", COMPLEMENTOS)):
+    for carpeta, mapa in (
+        ("experiencias", EXPERIENCIAS),
+        ("complementos", COMPLEMENTOS),
+        ("complementos", VARIANTES),
+    ):
         destino = os.path.join(destino_base, carpeta)
         os.makedirs(destino, exist_ok=True)
 

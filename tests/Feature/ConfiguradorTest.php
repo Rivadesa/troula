@@ -277,6 +277,97 @@ it('congela las horas extra contratadas en la reserva', function () {
         ->and((float) $reserva->total)->toBe(550.0);
 });
 
+// ---------------------------------------------------------------------------
+// Modelos a elegir dentro de una máquina (telas, lentejuelas, estructuras, neones)
+// ---------------------------------------------------------------------------
+
+it('el fotomatón de photocall preselecciona una tela sin coste', function () {
+    $tela = Experiencia::where('slug', 'fotomaton-photocall-tela')->firstOrFail();
+
+    $componente = Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $tela->id);
+
+    $elegidos = Complemento::whereIn('id', array_keys($componente->get('complementos')))->pluck('slug');
+
+    expect($elegidos)->toHaveCount(1)
+        ->and($elegidos->first())->toStartWith('tela-')
+        ->and($componente->instance()->desglose()->total)->toBe(480.0); // la tela no suma
+});
+
+it('elegir otra tela sustituye a la anterior y no cambia el precio', function () {
+    $tela = Experiencia::where('slug', 'fotomaton-photocall-tela')->firstOrFail();
+    $londres = Complemento::where('slug', 'tela-londres')->firstOrFail();
+
+    $componente = Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $tela->id)
+        ->call('alternarComplemento', $londres->id);
+
+    expect($componente->get('complementos'))->toHaveCount(1)
+        ->and($componente->get('complementos'))->toHaveKey($londres->id)
+        ->and($componente->instance()->desglose()->total)->toBe(480.0);
+});
+
+it('no se puede quedar sin tela: deseleccionar la elegida no hace nada', function () {
+    $tela = Experiencia::where('slug', 'fotomaton-photocall-tela')->firstOrFail();
+    $londres = Complemento::where('slug', 'tela-londres')->firstOrFail();
+
+    $componente = Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $tela->id)
+        ->call('alternarComplemento', $londres->id)
+        ->call('alternarComplemento', $londres->id);   // intenta quitarla
+
+    expect($componente->get('complementos'))->toHaveKey($londres->id);
+});
+
+it('el fotomatón de estructura y neón trae estructura y neón incluidos, y el sofá lo sube a 700', function () {
+    $maquina = Experiencia::where('slug', 'fotomaton-estructura-neon')->firstOrFail();
+    $sofa = Complemento::where('slug', 'sofa-chester-marron')->firstOrFail();
+
+    $componente = Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $maquina->id);
+
+    $elegidos = Complemento::whereIn('id', array_keys($componente->get('complementos')))->pluck('slug');
+
+    // Una estructura y un neón preseleccionados, ninguno con coste.
+    expect($elegidos)->toHaveCount(2)
+        ->and($componente->instance()->desglose()->total)->toBe(600.0);
+
+    // El sofá sí se cobra: es exactamente la diferencia del catálogo (600 -> 700).
+    $componente->call('alternarComplemento', $sofa->id);
+
+    expect($componente->instance()->desglose()->total)->toBe(700.0);
+});
+
+it('los neones cuestan 80 € en una máquina que no los lleva incluidos', function () {
+    $solo = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail(); // 450 €
+    $neon = Complemento::where('slug', 'neon-si-quiero')->firstOrFail();
+
+    $componente = Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $solo->id);
+
+    // Sin elecciones incluidas: aquí el neón es un extra de pago, no se preselecciona.
+    expect($componente->get('complementos'))->toBeEmpty();
+
+    $componente->call('alternarComplemento', $neon->id);
+
+    expect($componente->instance()->desglose()->total)->toBe(530.0); // 450 + 80
+});
+
+it('solo se puede llevar un neón: elegir otro sustituye al anterior', function () {
+    $solo = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail();
+    $uno = Complemento::where('slug', 'neon-si-quiero')->firstOrFail();
+    $otro = Complemento::where('slug', 'neon-querote')->firstOrFail();
+
+    $componente = Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $solo->id)
+        ->call('alternarComplemento', $uno->id)
+        ->call('alternarComplemento', $otro->id);
+
+    expect($componente->get('complementos'))->toHaveCount(1)
+        ->and($componente->get('complementos'))->toHaveKey($otro->id)
+        ->and($componente->instance()->desglose()->total)->toBe(530.0);
+});
+
 it('ofrece los 313 concellos de Galicia agrupados por provincia', function () {
     $concellos = Livewire::test(Configurador::class)->instance()->concellos();
 

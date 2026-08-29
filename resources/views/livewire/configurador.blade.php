@@ -224,7 +224,7 @@
                                         {{-- Grupo "elige uno": las opciones se excluyen entre sí --}}
                                         <div class="rounded-2xl border border-dashed border-marca-200 bg-marca-50/30 p-3">
                                             <p class="mb-3 text-[11px] font-bold uppercase tracking-wider text-marca-700">
-                                                Elige una opción · {{ Str::headline($nombreGrupo) }}
+                                                Elige una opción · {{ $nombreGrupo }}
                                             </p>
                                             <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                                                 @foreach ($complementos as $complemento)
@@ -506,7 +506,10 @@
                                     @foreach ($desglose->lineasComplementos as $linea)
                                         <div class="flex justify-between text-gray-600">
                                             <dt class="truncate pr-2">{{ $linea['cantidad'] }}× {{ $linea['nombre'] }}</dt>
-                                            <dd class="whitespace-nowrap">{{ $eur($linea['subtotal']) }}</dd>
+                                            {{-- Las elecciones incluidas (tela, estructura, neón…) no cuestan aparte --}}
+                                            <dd class="whitespace-nowrap {{ $linea['subtotal'] == 0 ? 'text-xs uppercase tracking-wide text-gray-400' : '' }}">
+                                                {{ $linea['subtotal'] == 0 ? 'Incluida' : $eur($linea['subtotal']) }}
+                                            </dd>
                                         </div>
                                     @endforeach
                                     @foreach ($desglose->lineasAConsultar as $linea)

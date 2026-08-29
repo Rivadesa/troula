@@ -300,7 +300,7 @@ class Configurador extends Component
             $this->turno = Turno::Completo->value;
             $this->horasExtra = 0;
             unset($this->experiencia);
-            $this->preseleccionarObligatorios();
+            $this->preseleccionarIncluidos();
         }
     }
 
@@ -321,17 +321,20 @@ class Configurador extends Component
         $this->fecha = null;
         $this->turno = Turno::Completo->value;
         $this->horasExtra = 0;
-        // Los extras se reinician: la máquina nueva puede ofrecer otros complementos.
-        $this->complementos = [];
 
         unset($this->experiencia, $this->pack, $this->basesDelPack);
+
+        // Los extras se reinician: la máquina nueva ofrece otros complementos y
+        // sus propias elecciones incluidas (tela, estructura, neón…).
+        $this->preseleccionarIncluidos();
     }
 
     public function elegirPack(int $packId): void
     {
         $this->packId = $packId;
-        // En modo pack, los complementos del pack ya van incluidos; los extras parten de cero.
-        $this->complementos = [];
+        // En modo pack los complementos del pack ya van incluidos: los extras
+        // parten de cero, pero las elecciones de la máquina se mantienen.
+        $this->preseleccionarIncluidos();
 
         unset($this->pack, $this->basesDelPack);
     }
@@ -339,7 +342,7 @@ class Configurador extends Component
     public function quitarPack(): void
     {
         $this->packId = null;
-        $this->preseleccionarObligatorios();
+        $this->preseleccionarIncluidos();
 
         unset($this->pack, $this->basesDelPack);
     }
@@ -347,6 +350,12 @@ class Configurador extends Component
     public function alternarComplemento(int $complementoId): void
     {
         if (array_key_exists($complementoId, $this->complementos)) {
+            // Una elección incluida (tela, estructura, neón del pack…) no se
+            // puede dejar vacía: se cambia eligiendo otra del grupo.
+            if ($this->esEleccionIncluida($complementoId)) {
+                return;
+            }
+
             unset($this->complementos[$complementoId]);
 
             return;
@@ -491,7 +500,14 @@ class Configurador extends Component
             ->all();
     }
 
-    private function preseleccionarObligatorios(): void
+    /**
+     * Deja el carrito con lo que la máquina trae de serie: los complementos
+     * marcados como obligatorios y, de cada grupo "elige uno" cuya elección va
+     * incluida en el precio (tela, lentejuelas, estructura, neón…), la primera
+     * opción. Así el cliente nunca se queda sin una elección obligada, y puede
+     * cambiarla con un clic.
+     */
+    private function preseleccionarIncluidos(): void
     {
         $this->complementos = [];
 
@@ -499,10 +515,26 @@ class Configurador extends Component
             return;
         }
 
+        $gruposYaElegidos = [];
+
         foreach ($this->experiencia->complementos as $complemento) {
             if ($complemento->pivot->obligatorio) {
                 $this->complementos[$complemento->id] = 1;
+
+                continue;
             }
+
+            $grupo = $complemento->pivot->grupo;
+            $precio = (float) ($complemento->pivot->precio_override ?? $complemento->precio);
+
+            // Solo las elecciones sin coste: un grupo de pago (p. ej. neones
+            // sueltos a 80 €) no se preselecciona, lo añade el cliente si quiere.
+            if (blank($grupo) || $precio > 0 || in_array($grupo, $gruposYaElegidos, true)) {
+                continue;
+            }
+
+            $this->complementos[$complemento->id] = 1;
+            $gruposYaElegidos[] = $grupo;
         }
     }
 
@@ -511,6 +543,21 @@ class Configurador extends Component
         $complemento = $this->experiencia?->complementos->firstWhere('id', $complementoId);
 
         return (bool) ($complemento?->pivot->obligatorio ?? false);
+    }
+
+    /**
+     * ¿Es una opción de un grupo "elige uno" que además va incluida en el precio?
+     * Esas son obligatorias de facto: hay que llevar una, sea cual sea.
+     */
+    public function esEleccionIncluida(int $complementoId): bool
+    {
+        $complemento = $this->experiencia?->complementos->firstWhere('id', $complementoId);
+
+        if ($complemento === null || blank($complemento->pivot->grupo)) {
+            return false;
+        }
+
+        return (float) ($complemento->pivot->precio_override ?? $complemento->precio) === 0.0;
     }
 
     /**

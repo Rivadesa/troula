@@ -37,7 +37,7 @@ class ComplementosRelationManager extends RelationManager
                 ->label('Grupo "elige uno"')
                 ->maxLength(255)
                 ->datalist(fn (): array => $this->gruposExistentes())
-                ->helperText('Los complementos con el mismo grupo se muestran como opciones excluyentes (p. ej. "estructura" u "hora-loca"). Vacío = selección libre.'),
+                ->helperText('Los complementos con el mismo grupo se muestran como opciones excluyentes, y el nombre del grupo se ve tal cual en el configurador (p. ej. "Estructura" o "Hora Loca"). Vacío = selección libre.'),
             Forms\Components\Toggle::make('obligatorio')
                 ->helperText('Si entra de serie (preseleccionado en el configurador).'),
             Forms\Components\TextInput::make('cantidad_maxima')

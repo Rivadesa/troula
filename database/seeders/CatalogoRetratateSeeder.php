@@ -38,6 +38,9 @@ class CatalogoRetratateSeeder extends Seeder
         $this->asociaciones();
         $this->packs();
 
+        // Después de asociaciones(), que hace sync() y borraría lo que este añade.
+        $this->call(VariantesRetratateSeeder::class);
+
         $this->command?->info('Catálogo Retrátate: '
             .Experiencia::count().' experiencias, '
             .Complemento::count().' complementos, '
@@ -290,22 +293,22 @@ class CatalogoRetratateSeeder extends Seeder
             'neon' => [],
             'sofa' => [],
             'alfombra' => [],
-            'audiolibro-firmas' => ['grupo' => 'audiolibro'],
-            'audiolibro-video' => ['grupo' => 'audiolibro'],
-            'letras-iniciales' => ['grupo' => 'letras'],
-            'letras-love' => ['grupo' => 'letras'],
-            'pack-letras' => ['grupo' => 'letras'],
-            'glitter-corner-1' => ['grupo' => 'glitter-corner'],
-            'glitter-corner-2' => ['grupo' => 'glitter-corner'],
-            'hora-loca-a' => ['grupo' => 'hora-loca'],
-            'hora-loca-b' => ['grupo' => 'hora-loca'],
-            'hora-loca-c' => ['grupo' => 'hora-loca'],
+            'audiolibro-firmas' => ['grupo' => 'Audiolibro'],
+            'audiolibro-video' => ['grupo' => 'Audiolibro'],
+            'letras-iniciales' => ['grupo' => 'Letras'],
+            'letras-love' => ['grupo' => 'Letras'],
+            'pack-letras' => ['grupo' => 'Letras'],
+            'glitter-corner-1' => ['grupo' => 'Glitter Corner'],
+            'glitter-corner-2' => ['grupo' => 'Glitter Corner'],
+            'hora-loca-a' => ['grupo' => 'Hora Loca'],
+            'hora-loca-b' => ['grupo' => 'Hora Loca'],
+            'hora-loca-c' => ['grupo' => 'Hora Loca'],
             'jeringas-shot' => ['cantidad_maxima' => 10],
             'inflable-tematico' => ['cantidad_maxima' => 10],
             'animador-extra' => ['cantidad_maxima' => 5],
             'pistolas-led-co2' => [],
-            'mesa-dulce-golosinas' => ['grupo' => 'mesa-dulce'],
-            'mesa-dulce-donuts' => ['grupo' => 'mesa-dulce'],
+            'mesa-dulce-golosinas' => ['grupo' => 'Mesa Dulce'],
+            'mesa-dulce-donuts' => ['grupo' => 'Mesa Dulce'],
             'kiosko-moita-troula' => [],
             'puesto-palomitero' => [],
             'puesto-algodonero' => [],
@@ -320,12 +323,11 @@ class CatalogoRetratateSeeder extends Seeder
             'invitaciones-madera' => [],
         ];
 
-        // Elementos que van INCLUIDOS en una experiencia concreta (precio 0, obligatorios).
-        $incluidos = [
-            'fotomaton-estructura-neon' => [
-                'estructura' => ['grupo' => 'estructura'],
-                'neon' => ['grupo' => 'neon'],
-            ],
+        // Complementos que una máquina concreta NO ofrece porque ya trae lo suyo:
+        // el Fotomatón con Estructura y Neón elige entre los modelos concretos que
+        // siembra VariantesRetratateSeeder, así que el genérico sobra.
+        $excluidos = [
+            'fotomaton-estructura-neon' => ['estructura', 'neon'],
         ];
 
         $idsComplementos = Complemento::pluck('id', 'slug');
@@ -337,17 +339,14 @@ class CatalogoRetratateSeeder extends Seeder
             foreach ($comunes as $slug => $reglas) {
                 $complementoId = $idsComplementos[$slug] ?? null;
 
-                if ($complementoId === null) {
+                if ($complementoId === null || in_array($slug, $excluidos[$experiencia->slug] ?? [], true)) {
                     continue;
                 }
 
-                $incluido = $incluidos[$experiencia->slug][$slug] ?? null;
-
                 $sync[$complementoId] = [
-                    // Lo incluido en la máquina no se vuelve a cobrar.
-                    'precio_override' => $incluido !== null ? 0 : null,
-                    'grupo' => $incluido['grupo'] ?? $reglas['grupo'] ?? null,
-                    'obligatorio' => $incluido !== null,
+                    'precio_override' => null,
+                    'grupo' => $reglas['grupo'] ?? null,
+                    'obligatorio' => false,
                     'cantidad_maxima' => $reglas['cantidad_maxima'] ?? 1,
                     'orden' => ++$orden,
                 ];
