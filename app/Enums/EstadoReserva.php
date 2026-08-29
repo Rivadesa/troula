@@ -12,6 +12,7 @@ enum EstadoReserva: string implements HasColor, HasLabel
     case Pagada = 'pagada';
     case Realizada = 'realizada';
     case Cancelada = 'cancelada';
+    case Caducada = 'caducada';
 
     public function getLabel(): string
     {
@@ -21,6 +22,7 @@ enum EstadoReserva: string implements HasColor, HasLabel
             self::Pagada => 'Pagada',
             self::Realizada => 'Realizada',
             self::Cancelada => 'Cancelada',
+            self::Caducada => 'Caducada',
         };
     }
 
@@ -32,6 +34,7 @@ enum EstadoReserva: string implements HasColor, HasLabel
             self::Pagada => 'success',
             self::Realizada => 'gray',
             self::Cancelada => 'danger',
+            self::Caducada => 'gray',
         };
     }
 

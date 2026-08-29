@@ -10,6 +10,7 @@ use App\Models\Complemento;
 use App\Models\ConcelloZona;
 use App\Models\Experiencia;
 use App\Models\Pack;
+use App\Models\Reserva;
 use App\Services\CalculadoraPrecioService;
 use App\Services\DesglosePrecio;
 use App\Services\DisponibilidadService;
@@ -397,6 +398,29 @@ class Configurador extends Component
         }
 
         $this->complementos[$complementoId] = 1;
+    }
+
+    /**
+     * Anula la reserva recién creada y devuelve el configurador a cero.
+     *
+     * Se borra de verdad: una reserva a medias que el cliente ha descartado no
+     * debe quedar ni en el listado del comercio ni reteniendo la fecha. Solo se
+     * permite mientras no haya un pago cobrado.
+     */
+    public function anularYEmpezar(): void
+    {
+        if ($this->referencia !== null) {
+            $reserva = Reserva::where('referencia', $this->referencia)->first();
+
+            if ($reserva !== null && $reserva->anulablePorElCliente()) {
+                $reserva->pagos()->delete();
+                $reserva->complementos()->detach();
+                $reserva->delete();
+            }
+        }
+
+        $this->reset();
+        $this->resetValidation();
     }
 
     public function subirHoraExtra(): void

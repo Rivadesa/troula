@@ -15,8 +15,10 @@ use Illuminate\Support\Collection;
  * Reglas:
  *  - Solapamiento de turnos: ver App\Enums\Turno::solapaCon().
  *  - Si la experiencia no permite turnos, toda reserva se trata como `completo`.
- *  - Disponible si (reservas activas que solapan) < experiencia.unidades.
- *  - Cuentan como activas: solicitada, confirmada, pagada, realizada (no cancelada).
+ *  - Disponible si (reservas que ocupan y solapan) < experiencia.unidades.
+ *  - Cuentan: confirmada, pagada y realizada siempre; `solicitada` solo mientras
+ *    su retención siga viva (ver Reserva::scopeOcupanDisponibilidad). Cancelada
+ *    y caducada no cuentan nunca.
  */
 class DisponibilidadService
 {
@@ -88,7 +90,7 @@ class DisponibilidadService
         $hasta = $this->normalizarFecha($hasta)->startOfDay();
 
         $reservasPorDia = Reserva::query()
-            ->activas()
+            ->ocupanDisponibilidad()
             ->where('experiencia_id', $experiencia->id)
             ->whereBetween('fecha_evento', [$desde->toDateString(), $hasta->toDateString()])
             ->get(['fecha_evento', 'turno'])
@@ -141,7 +143,7 @@ class DisponibilidadService
         $fecha = $this->normalizarFecha($fecha);
 
         return Reserva::query()
-            ->activas()
+            ->ocupanDisponibilidad()
             ->where('experiencia_id', $experiencia->id)
             ->whereDate('fecha_evento', $fecha->toDateString())
             ->when($ignorarReservaId !== null, fn ($query) => $query->whereKeyNot($ignorarReservaId))

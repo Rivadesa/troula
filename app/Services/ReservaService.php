@@ -150,7 +150,8 @@ class ReservaService
      */
     private function crearSenal(Reserva $reserva, float $total): void
     {
-        $senal = Configuracion::actual()->senalPara($total);
+        $config = Configuracion::actual();
+        $senal = $config->senalPara($total);
 
         if ($senal <= 0) {
             return;
@@ -161,6 +162,15 @@ class ReservaService
             'importe' => $senal,
             'estado' => EstadoPago::Pendiente,
         ]);
+
+        // La fecha queda RETENIDA, no reservada: si no se paga en este plazo, el
+        // equipo vuelve a estar libre. Así una reserva abandonada a medias no
+        // mata la fecha para siempre.
+        $minutos = (int) $config->reserva_minutos_retencion;
+
+        if ($minutos > 0) {
+            $reserva->update(['reserva_expira_en' => now()->addMinutes($minutos)]);
+        }
     }
 
     /**

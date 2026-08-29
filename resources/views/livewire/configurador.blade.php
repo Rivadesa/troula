@@ -43,9 +43,13 @@
                 </div>
             @endif
 
-            <a href="/" class="mt-6 inline-block rounded-full border border-gray-200 px-6 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50">
-                Configurar otro evento
-            </a>
+            {{-- Anular libera la fecha en el acto: si el cliente se va sin pagar,
+                 la reserva no debe quedar bloqueando el equipo. --}}
+            <button type="button" wire:click="anularYEmpezar"
+                    wire:confirm="Se anulará la reserva {{ $referencia }} y la fecha volverá a quedar libre. ¿Continuar?"
+                    class="mt-6 inline-block rounded-full border border-gray-200 px-6 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50">
+                Anular y configurar de nuevo
+            </button>
         </div>
     @else
         {{-- Barra de pasos --}}

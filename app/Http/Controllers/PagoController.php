@@ -152,7 +152,11 @@ class PagoController extends Controller
         $reserva = $pago->reserva;
 
         if ($reserva->estado === EstadoReserva::Solicitada) {
-            $reserva->update(['estado' => EstadoReserva::Confirmada]);
+            // Pagada la señal, la fecha deja de estar en retención: es firme.
+            $reserva->update([
+                'estado' => EstadoReserva::Confirmada,
+                'reserva_expira_en' => null,
+            ]);
         }
     }
 

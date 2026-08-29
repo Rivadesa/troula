@@ -22,6 +22,7 @@ class Configuracion extends Model
         'senal_valor' => 'decimal:2',
         'pago_transferencia' => 'boolean',
         'pago_tarjeta' => 'boolean',
+        'reserva_minutos_retencion' => 'integer',
         // La clave de Redsys permite firmar cobros: nunca en claro en la BD.
         'redsys_clave' => 'encrypted',
     ];

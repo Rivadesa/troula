@@ -66,6 +66,13 @@ class ConfiguracionPagos extends Page implements HasForms
                             ->suffix(fn (Get $get): string => $get('senal_tipo') === 'fijo' ? '€' : '%')
                             ->required()
                             ->helperText('Pon 0 para no pedir señal: la reserva se creará sin cobro.'),
+                        Forms\Components\TextInput::make('reserva_minutos_retencion')
+                            ->label('Minutos que se retiene la fecha')
+                            ->numeric()
+                            ->minValue(0)
+                            ->suffix('min')
+                            ->required()
+                            ->helperText('Tiempo que el cliente tiene para firmar y pagar. Si no paga, la fecha vuelve a quedar libre. 0 = la reserva bloquea la fecha desde el primer momento.'),
                         Forms\Components\Textarea::make('senal_texto')
                             ->label('Aviso para el cliente')
                             ->rows(2)
