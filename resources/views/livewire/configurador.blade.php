@@ -6,6 +6,31 @@
     $img = fn ($m) => $m && $m->imagen ? Storage::url($m->imagen) : null;
     $pasos = [1 => 'Tu experiencia', 2 => 'Complementos', 3 => 'Datos del evento', 4 => 'Tus datos', 5 => 'Tu reserva'];
     $desglose = $this->desglose;
+
+    /**
+     * Parte la descripción en (introducción, lista de lo incluido). El seeder
+     * añade a todas las máquinas el mismo bloque "Incluye siempre: a, b, c…";
+     * mostrado como lista se lee muchísimo mejor que como párrafo.
+     */
+    $partirDescripcion = function (?string $texto): array {
+        $marca = 'Incluye siempre:';
+        $texto = trim((string) $texto);
+
+        if (! str_contains($texto, $marca)) {
+            return [$texto, []];
+        }
+
+        [$intro, $resto] = explode($marca, $texto, 2);
+
+        $items = collect(explode(',', rtrim(trim($resto), '.')))
+            ->map(fn ($item) => trim(preg_replace('/^y\s+/iu', '', trim($item))))
+            ->filter()
+            ->map(fn ($item) => Str::ucfirst($item))
+            ->values()
+            ->all();
+
+        return [trim($intro), $items];
+    };
 @endphp
 
 <div>
@@ -83,13 +108,22 @@
                         <div class="mb-4"></div>
                     @endif
 
+                    <div x-data="{ detalle: null }">
                     {{-- Alto máximo ≈ 5 filas; si hay más, la lista se desplaza (no de una en una). --}}
                     <div class="max-h-[37rem] space-y-3 overflow-y-auto pr-1">
                         @foreach ($exps as $experiencia)
-                            @php $seleccionada = $experienciaId === $experiencia->id; @endphp
-                            <button type="button" wire:click="seleccionarExperiencia({{ $experiencia->id }})"
+                            @php
+                                $seleccionada = $experienciaId === $experiencia->id;
+                                [$intro, $incluye] = $partirDescripcion($experiencia->descripcion);
+                            @endphp
+                            {{-- Contenedor <div> y no <button>: dentro va otro botón (Ver detalle)
+                                 y anidar botones no es HTML válido. --}}
+                            <div role="button" tabindex="0"
+                                wire:click="seleccionarExperiencia({{ $experiencia->id }})"
+                                wire:keydown.enter="seleccionarExperiencia({{ $experiencia->id }})"
+                                wire:keydown.space.prevent="seleccionarExperiencia({{ $experiencia->id }})"
                                 @class([
-                                    'flex w-full items-stretch gap-4 overflow-hidden rounded-2xl border-2 bg-white text-left shadow-sm transition hover:shadow-md',
+                                    'flex w-full cursor-pointer items-stretch gap-4 overflow-hidden rounded-2xl border-2 bg-white text-left shadow-sm transition hover:shadow-md',
                                     'border-marca-500 ring-2 ring-marca-200' => $seleccionada,
                                     'border-transparent' => ! $seleccionada,
                                 ])>
@@ -107,8 +141,24 @@
                                 {{-- Texto a la derecha --}}
                                 <div class="flex min-w-0 flex-1 flex-col justify-center py-3 pr-4">
                                     <h3 class="text-sm font-bold uppercase tracking-wide text-gray-900">{{ $experiencia->nombre }}</h3>
-                                    <p class="mt-1 line-clamp-2 text-sm text-gray-500">{{ $experiencia->descripcion }}</p>
-                                    <p class="mt-2 text-lg font-black text-gray-900"><span class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Desde </span>{{ $eur($experiencia->precio_base) }}</p>
+                                    <p class="mt-1 line-clamp-2 text-sm text-gray-500">{{ $intro }}</p>
+                                    <div class="mt-2 flex flex-wrap items-center gap-x-3 gap-y-1">
+                                        <p class="text-lg font-black text-gray-900"><span class="text-[10px] font-semibold uppercase tracking-wide text-gray-400">Desde </span>{{ $eur($experiencia->precio_base) }}</p>
+                                        {{-- @click.stop: ver el detalle no debe seleccionar la experiencia --}}
+                                        <button type="button" @click.stop="detalle = @js([
+                                                'nombre' => $experiencia->nombre,
+                                                'intro' => $intro,
+                                                'incluye' => $incluye,
+                                                'precio' => $eur($experiencia->precio_base),
+                                                'horas' => (int) $experiencia->duracion_horas,
+                                                'horaExtra' => $experiencia->admiteHorasExtra() ? $eur($experiencia->precio_hora_extra) : null,
+                                                'imagen' => $img($experiencia),
+                                                'id' => $experiencia->id,
+                                            ])"
+                                            class="rounded-full border border-marca-200 px-3 py-1 text-[11px] font-semibold uppercase tracking-wide text-marca-700 transition hover:bg-marca-50">
+                                            Ver detalle
+                                        </button>
+                                    </div>
                                 </div>
                                 {{-- Estado de selección --}}
                                 <div class="flex shrink-0 items-center pr-4">
@@ -118,8 +168,65 @@
                                         <span class="grid h-8 w-8 place-items-center rounded-full bg-gray-100 text-gray-400">+</span>
                                     @endif
                                 </div>
-                            </button>
+                            </div>
                         @endforeach
+                        </div>
+
+                        {{-- Detalle de la experiencia. Un modal (y no desplegar en
+                             línea) para que la lista no se mueva mientras el
+                             cliente compara, y poder enseñar la foto en grande.
+                             Va FUERA del contenedor con scroll para que no lo recorte. --}}
+                        <template x-if="detalle">
+                            <div class="fixed inset-0 z-50 flex items-end justify-center bg-gray-900/60 p-0 sm:items-center sm:p-4"
+                                 @click.self="detalle = null" @keydown.escape.window="detalle = null">
+                                <div class="max-h-[92vh] w-full max-w-lg overflow-y-auto rounded-t-3xl bg-white shadow-xl sm:rounded-3xl">
+                                    <div class="relative">
+                                        <template x-if="detalle.imagen">
+                                            <img :src="detalle.imagen" :alt="detalle.nombre"
+                                                 class="h-52 w-full bg-marca-50 object-contain p-3">
+                                        </template>
+                                        <button type="button" @click="detalle = null"
+                                                class="absolute right-3 top-3 grid h-9 w-9 place-items-center rounded-full bg-white/90 text-gray-500 shadow hover:text-gray-800">✕</button>
+                                    </div>
+
+                                    <div class="p-6">
+                                        <h3 class="text-lg font-bold uppercase tracking-wide text-gray-900" x-text="detalle.nombre"></h3>
+
+                                        <div class="mt-2 flex flex-wrap items-baseline gap-x-3">
+                                            <span class="text-2xl font-black text-marca-700" x-text="detalle.precio"></span>
+                                            <span class="text-sm text-gray-500">
+                                                <span x-text="detalle.horas"></span> h de servicio
+                                            </span>
+                                        </div>
+                                        <p class="mt-1 text-xs text-gray-400" x-show="detalle.horaExtra">
+                                            Hora extra: <span x-text="detalle.horaExtra"></span>
+                                        </p>
+
+                                        <p class="mt-4 text-sm leading-relaxed text-gray-600" x-text="detalle.intro"></p>
+
+                                        <template x-if="detalle.incluye.length">
+                                            <div class="mt-5 rounded-2xl bg-marca-50/60 p-4">
+                                                <p class="text-xs font-bold uppercase tracking-wider text-marca-700">Incluye siempre</p>
+                                                <ul class="mt-2 grid gap-x-4 gap-y-1 sm:grid-cols-2">
+                                                    <template x-for="item in detalle.incluye" :key="item">
+                                                        <li class="flex items-start gap-1.5 text-sm text-gray-600">
+                                                            <span class="mt-0.5 text-marca-500">✓</span>
+                                                            <span x-text="item"></span>
+                                                        </li>
+                                                    </template>
+                                                </ul>
+                                            </div>
+                                        </template>
+
+                                        <button type="button"
+                                                @click="$wire.seleccionarExperiencia(detalle.id); detalle = null"
+                                                class="mt-6 w-full rounded-full bg-marca-600 px-6 py-3 text-sm font-semibold uppercase tracking-wide text-white hover:bg-marca-700">
+                                            Elegir esta experiencia
+                                        </button>
+                                    </div>
+                                </div>
+                            </div>
+                        </template>
                     </div>
                     @error('experienciaId') <p class="mt-3 text-sm text-acento-600">{{ $message }}</p> @enderror
                 @endif
@@ -234,10 +341,21 @@
 
                     {{-- Complementos por categoría (paneles plegables) --}}
                     @foreach ($this->complementosAgrupados as $categoria => $grupos)
-                        <div x-data="{ open: true }" class="mb-4 overflow-hidden rounded-2xl border border-gray-100 bg-white">
-                            <button type="button" @click="open = !open" class="flex w-full items-center justify-between px-5 py-3 text-left">
-                                <span class="text-sm font-bold uppercase tracking-wider text-gray-700">{{ $categoria }}</span>
-                                <span class="text-xs font-semibold uppercase tracking-wide text-marca-600" x-text="open ? 'Ver menos' : 'Ver más'"></span>
+                        @php $numOpciones = $grupos->flatten()->count(); @endphp
+                        {{-- En móvil las categorías arrancan PLEGADAS: con todo abierto
+                             el paso se hace larguísimo y hay que recorrer la página
+                             entera para ver qué hay. En escritorio siguen abiertas. --}}
+                        <div x-data="{ open: window.matchMedia('(min-width: 768px)').matches }"
+                             class="mb-4 overflow-hidden rounded-2xl border border-gray-100 bg-white">
+                            <button type="button" @click="open = !open" class="flex w-full items-center justify-between gap-3 px-5 py-3 text-left">
+                                <span class="flex items-center gap-2">
+                                    <span class="text-sm font-bold uppercase tracking-wider text-gray-700">{{ $categoria }}</span>
+                                    <span class="rounded-full bg-gray-100 px-2 py-0.5 text-[11px] font-semibold text-gray-500">{{ $numOpciones }}</span>
+                                </span>
+                                <span class="flex items-center gap-1 whitespace-nowrap text-xs font-semibold uppercase tracking-wide text-marca-600">
+                                    <span x-text="open ? 'Ver menos' : 'Ver más'"></span>
+                                    <span class="transition" :class="open ? 'rotate-180' : ''">▾</span>
+                                </span>
                             </button>
                             <div x-show="open" class="space-y-4 border-t border-gray-100 p-4">
                                 @foreach ($grupos as $nombreGrupo => $complementos)
