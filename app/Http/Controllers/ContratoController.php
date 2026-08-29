@@ -48,24 +48,14 @@ class ContratoController extends Controller
             return redirect()->to(URL::signedRoute('contrato.ver', ['reserva' => $reserva->referencia]));
         }
 
-        $datos = $request->validate([
-            'cliente_dni' => ['required', 'string', 'max:20'],
-            'cliente_direccion' => ['required', 'string', 'max:255'],
-            'acepto' => ['accepted'],
-        ], [
-            'cliente_dni.required' => 'Necesitamos tu DNI/NIE para el contrato.',
-            'cliente_direccion.required' => 'Necesitamos tu dirección para el contrato.',
-            'acepto.accepted' => 'Debes aceptar el contrato para continuar.',
-        ]);
+        $request->validate(
+            ['acepto' => ['accepted']],
+            ['acepto.accepted' => 'Debes aceptar el contrato para continuar.'],
+        );
 
-        // El DNI y la dirección entran ANTES de generar el texto: el contrato
-        // firmado tiene que llevarlos dentro, no quedar con los huecos vacíos.
-        $reserva->update([
-            'cliente_dni' => $datos['cliente_dni'],
-            'cliente_direccion' => $datos['cliente_direccion'],
-        ]);
-
-        $texto = $this->contratos->generar($reserva->fresh());
+        // El DNI y la dirección ya vienen del formulario de reserva, así que el
+        // texto se genera con ellos dentro.
+        $texto = $this->contratos->generar($reserva);
 
         if (trim($texto) === '') {
             throw ValidationException::withMessages([

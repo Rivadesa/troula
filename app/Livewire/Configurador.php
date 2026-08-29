@@ -61,6 +61,11 @@ class Configurador extends Component
 
     public string $clienteTelefono = '';
 
+    /** Datos que exige el contrato de prestación de servicios. */
+    public string $clienteDni = '';
+
+    public string $clienteDireccion = '';
+
     public ?string $lugarEvento = null;
 
     public ?string $observaciones = null;
@@ -490,6 +495,8 @@ class Configurador extends Component
                 'cliente_nombre' => $this->clienteNombre,
                 'cliente_email' => $this->clienteEmail,
                 'cliente_telefono' => $this->clienteTelefono,
+                'cliente_dni' => $this->clienteDni,
+                'cliente_direccion' => $this->clienteDireccion,
                 'lugar_evento' => $this->lugarEvento,
                 'observaciones' => $this->observaciones,
                 'acepto_lopd' => $this->aceptoLopd,
@@ -634,14 +641,17 @@ class Configurador extends Component
                 'clienteNombre' => ['required', 'string', 'max:120'],
                 'clienteEmail' => ['required', 'email:rfc', 'max:180'],
                 'clienteTelefono' => ['required', 'string', 'max:30', 'regex:/^[0-9 +().\-]{6,30}$/'],
+                // El contrato identifica al contratante: DNI y dirección son obligatorios.
+                // No se comprueba la letra del DNI a propósito: hay clientes con NIE o
+                // pasaporte y un formato demasiado estricto dejaría fuera reservas buenas.
+                'clienteDni' => ['required', 'string', 'max:20', 'regex:/^[A-Za-z0-9\-]{5,20}$/'],
+                'clienteDireccion' => ['required', 'string', 'max:200'],
                 'aceptoLopd' => ['accepted'],
             ], [
                 'clienteTelefono.regex' => 'Introduce un teléfono válido.',
+                'clienteDni.regex' => 'Introduce un DNI, NIE o pasaporte válido (sin espacios).',
                 'aceptoLopd.accepted' => 'Debes aceptar la política de privacidad para continuar.',
-            ], [
-                'clienteNombre' => 'nombre',
-                'clienteEmail' => 'email',
-                'clienteTelefono' => 'teléfono',
+                // Los nombres legibles de los campos van en lang/es/validation.php.
             ]),
             default => null,
         };

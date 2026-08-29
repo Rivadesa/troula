@@ -44,6 +44,8 @@ function reservaParaContrato(): Reserva
         'cliente_nombre' => 'Lucía Varela',
         'cliente_email' => 'lucia@example.com',
         'cliente_telefono' => '600123456',
+        'cliente_dni' => '32717262S',
+        'cliente_direccion' => 'Rúa Amil 18G, Cambre 15660',
         'acepto_lopd' => true,
     ]);
 }
@@ -101,11 +103,11 @@ it('sin plantilla configurada no se exige contrato', function () {
         ->assertOk();
 });
 
-it('exige DNI, dirección y la casilla de aceptación', function () {
+it('exige marcar la casilla de aceptación', function () {
     $reserva = reservaParaContrato();
 
     $this->post(URL::signedRoute('contrato.aceptar', ['reserva' => $reserva->referencia]), [])
-        ->assertSessionHasErrors(['cliente_dni', 'cliente_direccion', 'acepto']);
+        ->assertSessionHasErrors(['acepto']);
 
     expect($reserva->fresh()->contratoFirmado())->toBeFalse();
 });
@@ -114,8 +116,6 @@ it('al aceptar guarda el texto, su hash y el registro de la firma', function () 
     $reserva = reservaParaContrato();
 
     $this->post(URL::signedRoute('contrato.aceptar', ['reserva' => $reserva->referencia]), [
-        'cliente_dni' => '32717262S',
-        'cliente_direccion' => 'Rúa Amil 18G, Cambre 15660',
         'acepto' => '1',
     ])->assertRedirectContains('/pago');
 
@@ -136,8 +136,6 @@ it('una vez firmado, cambiar la plantilla no altera el contrato ya aceptado', fu
     $reserva = reservaParaContrato();
 
     $this->post(URL::signedRoute('contrato.aceptar', ['reserva' => $reserva->referencia]), [
-        'cliente_dni' => '11111111H',
-        'cliente_direccion' => 'Calle Mayor 1',
         'acepto' => '1',
     ]);
 
@@ -155,8 +153,6 @@ it('firmado el contrato, la pantalla de pago ya es accesible', function () {
     $reserva = reservaParaContrato();
 
     $this->post(URL::signedRoute('contrato.aceptar', ['reserva' => $reserva->referencia]), [
-        'cliente_dni' => '11111111H',
-        'cliente_direccion' => 'Calle Mayor 1',
         'acepto' => '1',
     ]);
 
@@ -166,7 +162,7 @@ it('firmado el contrato, la pantalla de pago ya es accesible', function () {
 it('no se puede firmar dos veces', function () {
     $reserva = reservaParaContrato();
 
-    $datos = ['cliente_dni' => '11111111H', 'cliente_direccion' => 'Calle Mayor 1', 'acepto' => '1'];
+    $datos = ['acepto' => '1'];
 
     $this->post(URL::signedRoute('contrato.aceptar', ['reserva' => $reserva->referencia]), $datos);
     $primeraFirma = $reserva->fresh()->contrato_aceptado_en;
@@ -181,8 +177,6 @@ it('la copia del contrato firmado muestra el registro de aceptación', function 
     $reserva = reservaParaContrato();
 
     $this->post(URL::signedRoute('contrato.aceptar', ['reserva' => $reserva->referencia]), [
-        'cliente_dni' => '11111111H',
-        'cliente_direccion' => 'Calle Mayor 1',
         'acepto' => '1',
     ]);
 

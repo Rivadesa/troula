@@ -103,7 +103,11 @@ class ContratoService
 
             'fecha_evento' => $reserva->fecha_evento->translatedFormat('j \d\e F \d\e Y'),
             'concello' => (string) $reserva->concello,
-            'lugar_evento' => (string) ($reserva->lugar_evento ?: '—'),
+            // El lugar concreto es opcional en el formulario: si no lo han puesto,
+            // el contrato indica al menos el concello en vez de dejar un hueco.
+            'lugar_evento' => filled($reserva->lugar_evento)
+                ? $reserva->lugar_evento.' ('.$reserva->concello.')'
+                : (string) $reserva->concello,
             'servicio' => $this->detalleServicio($reserva),
 
             'total' => $this->eur($total),

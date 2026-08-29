@@ -393,6 +393,18 @@
                             <input type="tel" wire:model="clienteTelefono" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:border-marca-500 focus:ring-marca-500">
                             @error('clienteTelefono') <p class="mt-1 text-sm text-acento-600">{{ $message }}</p> @enderror
                         </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">DNI / NIE</label>
+                            <input type="text" wire:model="clienteDni" class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:border-marca-500 focus:ring-marca-500">
+                            <p class="mt-1 text-xs text-gray-400">Necesario para el contrato de prestación de servicios.</p>
+                            @error('clienteDni') <p class="mt-1 text-sm text-acento-600">{{ $message }}</p> @enderror
+                        </div>
+                        <div>
+                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Dirección</label>
+                            <input type="text" wire:model="clienteDireccion" placeholder="Calle, número, población y código postal"
+                                   class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:border-marca-500 focus:ring-marca-500">
+                            @error('clienteDireccion') <p class="mt-1 text-sm text-acento-600">{{ $message }}</p> @enderror
+                        </div>
 
                         {{-- Consentimiento LOPD (obligatorio para conservar los datos del cliente) --}}
                         <div class="rounded-xl bg-marca-50/60 p-4">

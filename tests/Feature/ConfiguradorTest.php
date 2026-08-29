@@ -70,6 +70,8 @@ it('completa el wizard y crea una reserva solicitada enviando el aviso al admini
         ->set('clienteNombre', 'Cliente de Prueba')
         ->set('clienteEmail', 'prueba@example.com')
         ->set('clienteTelefono', '600000000')
+        ->set('clienteDni', '32717262S')
+        ->set('clienteDireccion', 'Rúa Amil 18G, Cambre')
         ->set('aceptoLopd', true)
         ->call('siguiente')                       // paso 4 -> 5
         ->assertSet('paso', 5)
@@ -109,6 +111,51 @@ it('exige aceptar la política de privacidad (LOPD) para enviar', function () {
         ->assertSet('paso', 4);
 });
 
+it('exige DNI y dirección: el contrato identifica al contratante', function () {
+    $fotomaton = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail();
+
+    Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $fotomaton->id)
+        ->call('siguiente')
+        ->call('siguiente')
+        ->set('fecha', '2027-05-01')
+        ->set('concello', 'A Coruña')
+        ->call('siguiente')   // paso 3 -> 4
+        ->set('clienteNombre', 'Cliente')
+        ->set('clienteEmail', 'cliente@example.com')
+        ->set('clienteTelefono', '600000000')
+        ->set('aceptoLopd', true)
+        ->call('siguiente')   // intenta avanzar sin DNI ni dirección
+        ->assertHasErrors(['clienteDni', 'clienteDireccion'])
+        ->assertSet('paso', 4);
+});
+
+it('guarda el DNI y la dirección en la reserva', function () {
+    $fotomaton = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail();
+
+    Livewire::test(Configurador::class)
+        ->call('seleccionarExperiencia', $fotomaton->id)
+        ->call('siguiente')
+        ->call('siguiente')
+        ->set('fecha', '2027-06-11')
+        ->set('concello', 'A Coruña')
+        ->call('siguiente')
+        ->set('clienteNombre', 'Cliente Con DNI')
+        ->set('clienteEmail', 'condni@example.com')
+        ->set('clienteTelefono', '600000000')
+        ->set('clienteDni', '49199828E')
+        ->set('clienteDireccion', 'Rúa Amil 18G, Cambre 15660')
+        ->set('aceptoLopd', true)
+        ->call('siguiente')
+        ->call('enviar')
+        ->assertHasNoErrors();
+
+    $reserva = Reserva::where('cliente_email', 'condni@example.com')->firstOrFail();
+
+    expect($reserva->cliente_dni)->toBe('49199828E')
+        ->and($reserva->cliente_direccion)->toBe('Rúa Amil 18G, Cambre 15660');
+});
+
 it('el honeypot bloquea los envíos automatizados (anti-spam)', function () {
     $fotomaton = Experiencia::where('slug', 'fotomaton-solo')->firstOrFail();
 
@@ -122,6 +169,8 @@ it('el honeypot bloquea los envíos automatizados (anti-spam)', function () {
         ->set('clienteNombre', 'Bot')
         ->set('clienteEmail', 'bot@spam.test')
         ->set('clienteTelefono', '600000000')
+        ->set('clienteDni', '32717262S')
+        ->set('clienteDireccion', 'Rúa Amil 18G, Cambre')
         ->set('aceptoLopd', true)
         ->call('siguiente')
         ->set('website', 'http://spam.example')   // un bot rellena el honeypot
@@ -237,6 +286,8 @@ it('un complemento a consultar se guarda en la reserva pero no suma al total', f
         ->set('clienteNombre', 'Cliente Consulta')
         ->set('clienteEmail', 'consulta@example.com')
         ->set('clienteTelefono', '600000000')
+        ->set('clienteDni', '32717262S')
+        ->set('clienteDireccion', 'Rúa Amil 18G, Cambre')
         ->set('aceptoLopd', true)
         ->call('siguiente')
         ->call('enviar')
@@ -265,6 +316,8 @@ it('congela las horas extra contratadas en la reserva', function () {
         ->set('clienteNombre', 'Cliente Horas')
         ->set('clienteEmail', 'horas@example.com')
         ->set('clienteTelefono', '600000000')
+        ->set('clienteDni', '32717262S')
+        ->set('clienteDireccion', 'Rúa Amil 18G, Cambre')
         ->set('aceptoLopd', true)
         ->call('siguiente')
         ->call('enviar')

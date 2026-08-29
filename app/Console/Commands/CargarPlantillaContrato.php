@@ -50,19 +50,39 @@ class CargarPlantillaContrato extends Command
 
         // Evento del ejemplo
         '15 AGOSTO 2026' => '{{fecha_evento}}',
-        'A TORRE DE LAXE, LAXE.' => '{{lugar_evento}} ({{concello}})',
+        // Sin paréntesis con el concello: {{lugar_evento}} ya lo incluye cuando
+        // hay un lugar concreto, y cae al concello solo cuando no lo hay.
+        'A TORRE DE LAXE, LAXE.' => '{{lugar_evento}}',
         'En A Coruña, 26 de JUNIO de 2026.' => 'En {{concello}}, {{fecha_hoy}}.',
 
-        // El documento original era solo para bodas. Se generaliza manteniendo
-        // el PLURAL para que la concordancia del texto legal siga siendo correcta
-        // ("los CLIENTES deberán…" igual que "los NOVIOS deberán…").
-        'La pareja de novios (a partir de ahora denominada “NOVIOS”) a continuación nombrados'
-            => 'La persona o personas contratantes (a partir de ahora denominadas “CLIENTES”) a continuación nombradas',
-        'reuniones previas a la boda con los NOVIOS' => 'reuniones previas al evento con los CLIENTES',
+        // El documento original era solo para bodas. Se generaliza a INTERESADOS.
+        //
+        // // DECISIÓN: el término definido va en PLURAL aunque el formulario
+        // recoja un único contratante. El texto está escrito en plural ("los
+        // NOVIOS deberán…") y pasarlo a singular obligaría a reescribir la
+        // concordancia de decenas de frases de un documento legal. Con "los
+        // INTERESADOS" la gramática se mantiene intacta.
+        'La pareja de novios (a partir de ahora denominada “NOVIOS”) a continuación nombrados, contrata a'
+            => 'El o los interesados (a partir de ahora denominados “LOS INTERESADOS”) a continuación nombrados, contratan a',
+        'reuniones previas a la boda con los NOVIOS' => 'reuniones previas al evento con los INTERESADOS',
         'el día de la boda contratado' => 'el día del evento contratado',
-        'alguno de los cónyuges' => 'alguno de los CLIENTES',
-        'NOVIOS' => 'CLIENTES',
+        'alguno de los cónyuges' => 'alguno de los INTERESADOS',
+        'uno de los cónyuges' => 'uno de los INTERESADOS',
+        // En minúscula aparece suelto en varias cláusulas. Va con el artículo
+        // delante para no tocar "noviembre", que también contiene "novi".
+        'los novios' => 'los INTERESADOS',
+        'del domicilio de los novios o familia' => 'del domicilio de los INTERESADOS o familia',
+        'la celebración de alguna parte de la boda' => 'la celebración de alguna parte del evento',
 
+        // El importe de la señal deja de ir escrito a fuego: lo pone la
+        // plataforma, así el contrato no puede contradecir lo que se cobra.
+        'la cantidad de 100€ (u otra cantidad solicitada por los novios)'
+            => 'la cantidad de {{senal}} (u otra cantidad acordada con los INTERESADOS)',
+
+        // Rótulo del bloque de datos. Va antes que la sustitución general:
+        // strtr elige siempre la coincidencia más larga en cada posición.
+        'NOVIOS:' => 'INTERESADO:',
+        'NOVIOS' => 'INTERESADOS',
     ];
 
     /**

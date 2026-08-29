@@ -20,26 +20,6 @@
                 <form method="POST" action="{{ url()->full() }}" class="mt-6 space-y-5">
                     @csrf
 
-                    <p class="text-xs font-semibold uppercase tracking-wider text-gray-400">
-                        Completa tus datos para el contrato
-                    </p>
-
-                    <div class="grid gap-4 sm:grid-cols-2">
-                        <div>
-                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">DNI / NIE</label>
-                            <input type="text" name="cliente_dni" value="{{ old('cliente_dni', $reserva->cliente_dni) }}"
-                                   class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:border-marca-500 focus:ring-marca-500">
-                            @error('cliente_dni') <p class="mt-1 text-sm text-acento-600">{{ $message }}</p> @enderror
-                        </div>
-                        <div>
-                            <label class="mb-1 block text-xs font-semibold uppercase tracking-wide text-gray-500">Dirección</label>
-                            <input type="text" name="cliente_direccion" value="{{ old('cliente_direccion', $reserva->cliente_direccion) }}"
-                                   placeholder="Calle, número, población y CP"
-                                   class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:border-marca-500 focus:ring-marca-500">
-                            @error('cliente_direccion') <p class="mt-1 text-sm text-acento-600">{{ $message }}</p> @enderror
-                        </div>
-                    </div>
-
                     <div class="rounded-xl bg-marca-50/60 p-4">
                         <label class="flex items-start gap-3">
                             <input type="checkbox" name="acepto" value="1" @checked(old('acepto'))
