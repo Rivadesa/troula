@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Support\Facades\Cache;
+use Illuminate\Support\Facades\Log;
 
 /**
  * Datos de la empresa. Fila única (singleton) editable desde el panel.
@@ -18,7 +19,58 @@ class Configuracion extends Model
     protected $casts = [
         'mail_password' => 'encrypted',
         'mail_port' => 'integer',
+        'senal_valor' => 'decimal:2',
+        'pago_transferencia' => 'boolean',
+        'pago_tarjeta' => 'boolean',
+        // La clave de Redsys permite firmar cobros: nunca en claro en la BD.
+        'redsys_clave' => 'encrypted',
     ];
+
+    /**
+     * Señal que corresponde a un importe total, redondeada a céntimos.
+     * Nunca supera el total ni baja de cero.
+     */
+    public function senalPara(float $total): float
+    {
+        $valor = (float) $this->senal_valor;
+
+        $senal = $this->senal_tipo === 'fijo'
+            ? $valor
+            : $total * $valor / 100;
+
+        return round(max(0, min($senal, $total)), 2);
+    }
+
+    /**
+     * Clave de firma de Redsys ya descifrada, o null si el valor guardado no se
+     * puede descifrar.
+     *
+     * // DECISIÓN: se traga la excepción a propósito. La columna va cifrada, y si
+     * alguien la escribe a mano en la BD (phpMyAdmin, un volcado restaurado con
+     * otra APP_KEY) el descifrado falla; sin esto, esa fila tumbaría con un 500
+     * la página pública de pago. Así el TPV simplemente no se ofrece.
+     */
+    public function claveRedsys(): ?string
+    {
+        try {
+            return $this->redsys_clave;
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo descifrar la clave de Redsys: '.$e->getMessage());
+
+            return null;
+        }
+    }
+
+    /**
+     * ¿Está Redsys operativo? Requiere el interruptor y las tres credenciales.
+     */
+    public function cobraConTarjeta(): bool
+    {
+        return (bool) $this->pago_tarjeta
+            && filled($this->redsys_comercio)
+            && filled($this->redsys_terminal)
+            && filled($this->claveRedsys());
+    }
 
     private const CACHE_KEY = 'configuracion.empresa';
 

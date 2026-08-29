@@ -11,7 +11,12 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware) {
-        //
+        // La notificación de Redsys es un POST servidor a servidor: no lleva
+        // token CSRF. Su autenticidad se comprueba con la firma HMAC del propio
+        // mensaje (ver RedsysPasarela::firmaValida).
+        $middleware->validateCsrfTokens(except: [
+            'pagos/redsys/notificacion',
+        ]);
     })
     ->withExceptions(function (Exceptions $exceptions) {
         //

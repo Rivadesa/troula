@@ -2,10 +2,13 @@
 
 namespace App\Services;
 
+use App\Enums\EstadoPago;
 use App\Enums\EstadoReserva;
+use App\Enums\TipoPago;
 use App\Enums\Turno;
 use App\Exceptions\ExperienciaNoDisponibleException;
 use App\Models\Cliente;
+use App\Models\Configuracion;
 use App\Models\Experiencia;
 use App\Models\Pack;
 use App\Models\Reserva;
@@ -127,9 +130,33 @@ class ReservaService
                     ]);
                 }
 
+                $this->crearSenal($reserva, (float) $desglose->total);
+
                 return $reserva;
             });
         });
+    }
+
+    /**
+     * Deja preparado el cobro de la señal, pendiente de pago.
+     *
+     * Se crea SIEMPRE al reservar (no al pagar): así la reserva ya retiene la
+     * fecha mientras el cliente firma y paga, y no se la puede llevar otro
+     * mientras está en la pasarela.
+     */
+    private function crearSenal(Reserva $reserva, float $total): void
+    {
+        $senal = Configuracion::actual()->senalPara($total);
+
+        if ($senal <= 0) {
+            return;
+        }
+
+        $reserva->pagos()->create([
+            'tipo' => TipoPago::Senal,
+            'importe' => $senal,
+            'estado' => EstadoPago::Pendiente,
+        ]);
     }
 
     /**

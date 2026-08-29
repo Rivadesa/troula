@@ -17,9 +17,30 @@
             <p class="mt-2 text-gray-600">
                 Hemos recibido tu solicitud con la referencia
                 <span class="font-semibold text-marca-700">{{ $referencia }}</span>.
-                Nos pondremos en contacto contigo muy pronto para confirmar la disponibilidad.
+                @if ($urlPago)
+                    Tu fecha ya está reservada a tu nombre.
+                @else
+                    Nos pondremos en contacto contigo muy pronto para confirmar la disponibilidad.
+                @endif
             </p>
-            <a href="/" class="mt-6 inline-block rounded-full bg-marca-600 px-6 py-3 font-semibold text-white hover:bg-marca-700">
+
+            @if ($urlPago)
+                <div class="mt-6 rounded-2xl bg-marca-50 p-5">
+                    <p class="text-sm text-gray-600">
+                        Para dejarla cerrada, solo falta abonar la señal de
+                        <span class="font-bold text-marca-700">{{ number_format($importeSenal, 2, ',', '.') }} €</span>.
+                    </p>
+                    <a href="{{ $urlPago }}"
+                       class="mt-4 inline-block rounded-full bg-marca-600 px-8 py-3 font-semibold uppercase tracking-wide text-white hover:bg-marca-700">
+                        Pagar la señal
+                    </a>
+                    <p class="mt-3 text-xs text-gray-400">
+                        También te enviamos este enlace por email, por si prefieres hacerlo más tarde.
+                    </p>
+                </div>
+            @endif
+
+            <a href="/" class="mt-6 inline-block rounded-full border border-gray-200 px-6 py-3 text-sm font-semibold text-gray-600 hover:bg-gray-50">
                 Configurar otro evento
             </a>
         </div>
@@ -263,6 +284,26 @@
                                     class="w-full rounded-xl border border-gray-200 px-4 py-3 focus:border-marca-500 focus:ring-marca-500">
                             </div>
                             <p class="mt-1 text-xs text-gray-400">Las fechas sin disponibilidad aparecen deshabilitadas.</p>
+
+                            {{-- Aviso explícito de unidades libres: el cliente ve si queda sitio
+                                 antes de llegar al pago. --}}
+                            @if ($fecha && $this->unidadesLibres !== null)
+                                @if ($this->unidadesLibres > 0)
+                                    <p class="mt-2 rounded-lg bg-marca-50 px-3 py-2 text-sm text-marca-700">
+                                        ✓ Disponible:
+                                        @if ($this->unidadesLibres === 1)
+                                            queda <span class="font-semibold">1 unidad</span> para ese día.
+                                        @else
+                                            quedan <span class="font-semibold">{{ $this->unidadesLibres }} unidades</span> para ese día.
+                                        @endif
+                                    </p>
+                                @else
+                                    <p class="mt-2 rounded-lg bg-acento-100 px-3 py-2 text-sm text-acento-600">
+                                        Sin disponibilidad para esa fecha. Elige otro día para poder continuar.
+                                    </p>
+                                @endif
+                            @endif
+
                             @error('fecha') <p class="mt-1 text-sm text-acento-600">{{ $message }}</p> @enderror
                         </div>
 

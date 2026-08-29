@@ -3,6 +3,7 @@
 namespace App\Providers;
 
 use App\Models\Configuracion;
+use Illuminate\Support\Facades\Blade;
 use Illuminate\Support\Facades\Schema;
 use Illuminate\Support\ServiceProvider;
 
@@ -22,6 +23,10 @@ class AppServiceProvider extends ServiceProvider
     public function boot(): void
     {
         $this->aplicarConfiguracionCorreo();
+
+        // Permite usar el layout público como componente (<x-layouts::configurador>)
+        // desde vistas Blade normales, no solo desde Livewire con #[Layout].
+        Blade::anonymousComponentPath(resource_path('views/layouts'), 'layouts');
     }
 
     /**

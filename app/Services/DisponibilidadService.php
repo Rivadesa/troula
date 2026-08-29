@@ -36,6 +36,22 @@ class DisponibilidadService
     }
 
     /**
+     * Unidades que quedan libres para esa fecha y turno. Se usa para avisar al
+     * cliente en el configurador antes de que llegue a pagar.
+     */
+    public function unidadesLibres(
+        Experiencia $experiencia,
+        CarbonInterface|string $fecha,
+        Turno $turno = Turno::Completo,
+        ?int $ignorarReservaId = null,
+    ): int {
+        $turno = $this->normalizarTurno($experiencia, $turno);
+        $reservasDia = $this->reservasDelDia($experiencia, $fecha, $ignorarReservaId);
+
+        return max(0, $experiencia->unidades - $this->ocupadas($reservasDia, $turno));
+    }
+
+    /**
      * Turnos que todavía admiten reserva ese día (para el configurador).
      *
      * @return array<int, Turno>

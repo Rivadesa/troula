@@ -2,6 +2,7 @@
 
 namespace App\Livewire;
 
+use App\Enums\TipoPago;
 use App\Enums\Turno;
 use App\Exceptions\ExperienciaNoDisponibleException;
 use App\Mail\NuevaReservaMail;
@@ -17,6 +18,7 @@ use Illuminate\Support\Carbon;
 use Illuminate\Support\Collection;
 use Illuminate\Support\Facades\Mail;
 use Illuminate\Support\Facades\RateLimiter;
+use Illuminate\Support\Facades\URL;
 use Illuminate\Validation\ValidationException;
 use Livewire\Attributes\Computed;
 use Livewire\Attributes\Layout;
@@ -70,6 +72,12 @@ class Configurador extends Component
 
     // Estado final tras enviar.
     public ?string $referencia = null;
+
+    /** URL firmada de la pantalla de pago de la señal (null si no se pide señal). */
+    public ?string $urlPago = null;
+
+    /** Importe de la señal de la reserva recién creada. */
+    public ?float $importeSenal = null;
 
     // ----------------------------------------------------------------------
     // Propiedades computadas (se reevalúan en cada render → total siempre vivo)
@@ -253,6 +261,23 @@ class Configurador extends Component
         return app(DisponibilidadService::class)->turnosDisponibles($this->experiencia, $this->fecha);
     }
 
+    /**
+     * Unidades libres de la máquina para la fecha elegida. null = aún no hay fecha.
+     */
+    #[Computed]
+    public function unidadesLibres(): ?int
+    {
+        if ($this->experiencia === null || $this->fecha === null) {
+            return null;
+        }
+
+        return app(DisponibilidadService::class)->unidadesLibres(
+            $this->experiencia,
+            $this->fecha,
+            Turno::from($this->turno),
+        );
+    }
+
     #[Computed]
     public function desglose(): ?DesglosePrecio
     {
@@ -406,7 +431,7 @@ class Configurador extends Component
 
     public function updatedFecha(): void
     {
-        unset($this->turnosDisponibles);
+        unset($this->turnosDisponibles, $this->unidadesLibres);
 
         if ($this->experiencia?->permite_turnos) {
             $disponibles = $this->turnosDisponibles;
@@ -479,6 +504,16 @@ class Configurador extends Component
         Mail::to(config('mail.admin_address'))->queue(new NuevaReservaMail($reserva));
 
         $this->referencia = $reserva->referencia;
+
+        // Si la reserva lleva señal, se ofrece pagarla ya. La fecha queda retenida
+        // desde este momento, así que el cliente puede pagar con calma.
+        $senal = $reserva->pagos()->where('tipo', TipoPago::Senal)->first();
+
+        if ($senal !== null) {
+            $this->importeSenal = (float) $senal->importe;
+            $this->urlPago = URL::signedRoute('pago.mostrar', ['reserva' => $reserva->referencia]);
+        }
+
         $this->paso = self::ULTIMO_PASO + 1; // pantalla de "gracias"
     }
 
