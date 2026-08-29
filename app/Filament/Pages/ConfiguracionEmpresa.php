@@ -70,6 +70,14 @@ class ConfiguracionEmpresa extends Page implements HasForms
                         Forms\Components\TextInput::make('ciudad')->label('Ciudad')->maxLength(255),
                         Forms\Components\TextInput::make('codigo_postal')->label('Código postal')->maxLength(255),
                         Forms\Components\TextInput::make('cif')->label('CIF / NIF')->maxLength(255),
+                        Forms\Components\TextInput::make('titular_nombre')
+                            ->label('Titular que firma los contratos')
+                            ->maxLength(255)
+                            ->helperText('Persona física que aparece como prestador del servicio.'),
+                        Forms\Components\TextInput::make('titular_dni')
+                            ->label('DNI del titular')
+                            ->maxLength(20)
+                            ->helperText('Se usa para rellenar el contrato de prestación de servicios.'),
                     ])->columns(3),
 
                 Forms\Components\Section::make('Redes sociales')
