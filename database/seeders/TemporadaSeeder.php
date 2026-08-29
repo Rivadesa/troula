@@ -6,6 +6,17 @@ use App\Enums\TipoAjuste;
 use App\Models\Temporada;
 use Illuminate\Database\Seeder;
 
+/**
+ * Temporadas de ejemplo, DESACTIVADAS a propósito.
+ *
+ * // DECISIÓN (29-ago-2026): los nombres, fechas y porcentajes de aquí son datos
+ * de demo inventados en la fase inicial, no salen de la tarifa del cliente. El
+ * catálogo 2026 tiene precios planos, sin recargo por temporada, y el contrato
+ * define las temporadas de otra forma (baja = noviembre a abril). Con ellas
+ * activas el configurador cobraba un 20 % de más en verano sobre el precio de
+ * tarifa, así que se dejan creadas pero apagadas: sirven de plantilla para que
+ * el comercio ponga las suyas desde Panel → Temporadas.
+ */
 class TemporadaSeeder extends Seeder
 {
     public function run(): void
@@ -45,7 +56,7 @@ class TemporadaSeeder extends Seeder
                     'fecha_fin' => $temporada['fecha_fin'],
                     'tipo_ajuste' => $temporada['tipo_ajuste'],
                     'valor' => $temporada['valor'],
-                    'activo' => true,
+                    'activo' => false,
                 ],
             );
         }
